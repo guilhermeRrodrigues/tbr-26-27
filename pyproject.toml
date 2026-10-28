@@ -1,0 +1,39 @@
+# CoopBot — sistema de programação do robô da TBR 2026, categoria Middle 2.
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tbr-coopbot"
+version = "0.1.0"
+description = "Linguagem de missões em Python (Pybricks) + menu, calibração e ferramentas do CoopBot"
+requires-python = ">=3.12"
+dependencies = [
+    "pybricksdev>=2.3.2",   # BLE/USB, mpy-cross e download do programa para o hub
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+tbr = "ferramentas.cli:main"
+
+[tool.hatch.build.targets.wheel]
+# Só as ferramentas do PC viram pacote. `hub/` é MicroPython e NUNCA é importado
+# no PC (ver CLAUDE.md, regra 1).
+packages = ["ferramentas"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+# Sem estas três linhas o pytest coleta ZERO arquivos e sai verde: o padrão
+# default é "test_*.py", que não casa com "teste_*.py". Lição do Baymax.
+python_files = ["teste_*.py"]
+python_functions = ["teste_*"]
+python_classes = ["Teste*"]
+testpaths = ["testes"]
+# `hub/` não pode ser coletado: o pacote `pybricks` está instalado na .venv (vem
+# com o pybricksdev), então importar um programa de hub não dá ImportError — ele
+# EXECUTA, e o laço do menu pendura o processo.
+norecursedirs = ["hub", ".venv", "*.egg-info", "__pycache__"]
+addopts = "-q --strict-markers --strict-config"
