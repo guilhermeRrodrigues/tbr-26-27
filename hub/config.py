@@ -16,12 +16,13 @@ PORTA_ANEXO2 = Port.B
 PORTA_COR_DIR = Port.A
 PORTA_COR_ESQ = Port.E
 
-# Os motores de tração são montados ESPELHADOS (CoopBot.pdf p.17): para os dois
-# empurrarem o robô para a frente com o mesmo sinal, o esquerdo é invertido.
-# Confirme com a rotina "P" (Portas) do menu: se o robô girar no lugar quando
-# devia andar reto, troque os dois sentidos abaixo.
-SENTIDO_RODA_DIR = Direction.CLOCKWISE
-SENTIDO_RODA_ESQ = Direction.COUNTERCLOCKWISE
+# Os motores de tração são montados ESPELHADOS (CoopBot.pdf p.17): um dos dois
+# é invertido para os dois empurrarem o robô para a frente com o mesmo sinal.
+# Conferido na rotina "P" em 2026-10-28: com DIR=CLOCKWISE/ESQ=COUNTERCLOCKWISE o
+# robô andava PARA TRÁS, então é o direito que fica invertido.
+# Se o robô girar no lugar quando devia andar reto, só um dos dois está errado.
+SENTIDO_RODA_DIR = Direction.COUNTERCLOCKWISE
+SENTIDO_RODA_ESQ = Direction.CLOCKWISE
 SENTIDO_ANEXO1 = Direction.CLOCKWISE
 SENTIDO_ANEXO2 = Direction.CLOCKWISE
 

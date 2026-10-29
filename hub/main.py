@@ -23,6 +23,16 @@ import rotinas_cal
 # Assinatura impressa no boot: no `tbr rodar` ela confirma qual programa subiu.
 print("COOPBOT TBR2026 menu")
 
+# Diagnóstico de boot: o que este hub está usando DE VERDADE (no `tbr rodar`).
+import config
+print("DIAG sentidos roda dir=%s esq=%s" % (config.SENTIDO_RODA_DIR, config.SENTIDO_RODA_ESQ))
+print("DIAG calibracao %s: roda=%.2f bitola=%.2f" % (
+    "GRAVADA" if tbr.cal_gravada else "PADRAO (nada gravado)",
+    tbr.cal["roda"], tbr.cal["bitola"]))
+print("DIAG cor dir preto=%d branco=%d | esq preto=%d branco=%d" % (
+    tbr.cal["preto_dir"], tbr.cal["branco_dir"], tbr.cal["preto_esq"], tbr.cal["branco_esq"]))
+print("DIAG imu", tbr.hub.imu.settings())
+
 # Cada item: (rótulo na matriz, nome, função, é_saida)
 ITENS = []
 for _i in range(len(saidas.SAIDAS)):
