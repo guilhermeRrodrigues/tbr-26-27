@@ -153,6 +153,13 @@ def virar_para(rumo, vel=NORMAL):
     return True
 
 
+def andar_ate_travar(max_cm, vel=LENTO, ms=250):
+    # No simulador nada trava: anda o limite inteiro, como andar().
+    _avancar(max_cm)
+    _passo("andar_ate_travar(%g)" % max_cm, _t_reta(max_cm, vel))
+    return False
+
+
 def virar_ate_travar(rumo, vel=LENTO, ms=250):
     # No simulador nada trava: gira até o rumo, como virar_para.
     global _rumo
@@ -168,7 +175,7 @@ def sacudir(ms, cm=_C["SACUDIR_CM"], graus=_C["SACUDIR_GRAUS"]):
     return True
 
 
-def curva(raio_cm, graus, vel=NORMAL):
+def curva(raio_cm, graus, vel=NORMAL, parar=True):
     global _x, _y, _rumo
     # Arco: o centro fica a `raio` para o lado da curva.
     h0 = math.radians(_rumo)
@@ -182,7 +189,8 @@ def curva(raio_cm, graus, vel=NORMAL):
     _y = cy + abs(raio_cm) * math.sin(ang)
     _rumo += graus
     comprimento = abs(raio_cm * math.radians(graus))
-    _passo("curva(%g, %g)" % (raio_cm, graus), _t_reta(comprimento, vel))
+    _passo("curva(%g, %g)" % (raio_cm, graus),
+           _t_reta(comprimento, vel) - (0 if parar else _ASSENTA_S))
     return True
 
 
@@ -350,6 +358,87 @@ def angulo_anexo1():
 
 def angulo_anexo2():
     return _anexos[1]
+
+
+# --- Elevador (anexo2) e garra (anexo1) --------------------------------------------
+def _traduzir_vel(vel, prefixo):
+    return {LENTO: _C[prefixo + "_LENTO"], NORMAL: _C[prefixo + "_NORMAL"],
+            RAPIDO: _C[prefixo + "_RAPIDO"]}.get(vel, abs(vel))
+
+
+def _mover(i, graus_alvo, vel, prefixo, esperar, descricao):
+    taxa = _traduzir_vel(vel, prefixo)
+    delta = graus_alvo - _anexos[i]
+    _anexos[i] = graus_alvo
+    _passo(descricao, abs(delta) / taxa + 0.05 if esperar else 0.0)
+    return True
+
+
+def _elevador(alvo_cm, vel, esperar, descricao):
+    alvo = min(max(alvo_cm, 0.0), _C["ELEVADOR_CURSO_CM"])
+    if abs(alvo - alvo_cm) > 0.05:
+        print("AVISO: %s: %.1f cm fora do curso, vai a %.1f" % (descricao, alvo_cm, alvo))
+    graus = _C["ELEVADOR_SOBE"] * alvo * _C["ELEVADOR_GRAUS_CM"]
+    return _mover(1, graus, vel, "ELEVADOR", esperar, descricao)
+
+
+def altura_elevador():
+    return _C["ELEVADOR_SOBE"] * _anexos[1] / _C["ELEVADOR_GRAUS_CM"]
+
+
+def subir(cm=None, vel=NORMAL, forca=_C["ELEVADOR_FORCA"], esperar=True):
+    alvo = _C["ELEVADOR_CURSO_CM"] if cm is None else altura_elevador() + cm
+    return _elevador(alvo, vel, esperar, "subir(%s)" % ("" if cm is None else "%g" % cm))
+
+
+def descer(cm=None, vel=NORMAL, forca=_C["ELEVADOR_FORCA"], esperar=True):
+    alvo = 0.0 if cm is None else altura_elevador() - cm
+    return _elevador(alvo, vel, esperar, "descer(%s)" % ("" if cm is None else "%g" % cm))
+
+
+def elevador_ir_para(cm, vel=NORMAL, forca=_C["ELEVADOR_FORCA"], esperar=True):
+    return _elevador(cm, vel, esperar, "elevador_ir_para(%g)" % cm)
+
+
+def _garra(abertura_cm, vel, esperar, descricao):
+    minimo = _C["GARRA_ABERTA_CM"] - _C["GARRA_CURSO_CM"]
+    alvo = min(max(abertura_cm, minimo), _C["GARRA_ABERTA_CM"])
+    if abs(alvo - abertura_cm) > 0.05:
+        print("AVISO: %s: abertura de %.1f cm fora do curso, vai a %.1f" % (descricao, abertura_cm, alvo))
+    graus = _C["GARRA_FECHA"] * (_C["GARRA_ABERTA_CM"] - alvo) * _C["GARRA_GRAUS_CM"]
+    return _mover(0, graus, vel, "GARRA", esperar, descricao)
+
+
+def abertura_garra():
+    return _C["GARRA_ABERTA_CM"] - _C["GARRA_FECHA"] * _anexos[0] / _C["GARRA_GRAUS_CM"]
+
+
+def abrir(cm=None, vel=NORMAL, forca=_C["GARRA_FORCA_ABRIR"], esperar=True):
+    if cm is None:
+        _anexos[0] = 0.0                # batente = 0
+        _passo("abrir()", 0.5 if esperar else 0.0)
+        return True
+    return _garra(abertura_garra() + cm, vel, esperar, "abrir(%g)" % cm)
+
+
+def fechar(cm=None, vel=NORMAL, forca=_C["GARRA_FORCA"], esperar=True):
+    if cm is None:
+        # Sem peça, fecha até o fim do curso; com peça pararia antes.
+        _anexos[0] = _C["GARRA_FECHA"] * _C["GARRA_CURSO_CM"] * _C["GARRA_GRAUS_CM"]
+        _passo("fechar()", 0.5 if esperar else 0.0)
+        return True
+    return _garra(abertura_garra() - cm, vel, esperar, "fechar(%g)" % cm)
+
+
+def apertar(forca=_C["GARRA_FORCA_APERTAR"], vel=LENTO, esperar=True):
+    # Sem peça, fecha até o fim do curso; no hub continua empurrando depois.
+    _anexos[0] = _C["GARRA_FECHA"] * _C["GARRA_CURSO_CM"] * _C["GARRA_GRAUS_CM"]
+    _passo("apertar()", 0.5 if esperar else 0.0)
+    return True
+
+
+def garra_ir_para(cm, vel=NORMAL, forca=_C["GARRA_FORCA"], esperar=True):
+    return _garra(cm, vel, esperar, "garra_ir_para(%g)" % cm)
 
 
 # --- Hub ---------------------------------------------------------------------------

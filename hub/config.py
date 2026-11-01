@@ -65,6 +65,44 @@ ACEL_GIRO = 1000        # graus/s^2
 # Velocidade dos anexos (graus/s de motor)
 VEL_ANEXO = 500
 
+# --- Elevador (anexo2, porta B) e garra (anexo1, porta F) ----------------------
+# Cotas de modelos3d/elevador (LEIAME.md, "Limites para o código do hub").
+# Elevador: fuso de 4 entradas, 16 mm por volta => 360 / 1,6 = 225 graus por cm.
+# Curso de 19,6 cm (4410 graus). 0 = carro embaixo, onde ele tem de estar na
+# largada (caixa de 30 cm). O fuso NÃO se auto-trava: só o hold do B segura.
+ELEVADOR_GRAUS_CM = 225.0
+ELEVADOR_CURSO_CM = 19.6
+# Sinal do motor que SOBE: +1 = horário visto de cima (rosca direita com o
+# eixo do B para cima). Se subir() descer, troque para -1.
+ELEVADOR_SOBE = 1
+# Velocidades do elevador (graus/s de motor) para LENTO / NORMAL / RAPIDO.
+# 800 graus/s = 3,6 cm/s: o curso inteiro em ~5,5 s.
+ELEVADOR_LENTO = 400
+ELEVADOR_NORMAL = 800
+ELEVADOR_RAPIDO = 1000
+# Força padrão (% do torque). O hold do B é o que segura o carro com peso:
+# abaixo de 100 ele pode ceder.
+ELEVADOR_FORCA = 100
+
+# Garra: pinhão de 22 dentes (raio primitivo 11 mm) na cremalheira =>
+# 180 / (pi x 1,1) = 52,1 graus por cm. Curso de 3 cm (~156 graus): abre até
+# 6 cm entre os dedos (batente) e fecha até 3 cm (fundo do túnel).
+GARRA_GRAUS_CM = 52.1
+GARRA_CURSO_CM = 3.0
+GARRA_ABERTA_CM = 6.0
+# Sinal do motor que FECHA: +1 = horário visto de cima (o pinhão puxa a barra
+# para trás). Se fechar() abrir, troque para -1.
+GARRA_FECHA = 1
+# Velocidades da garra (graus/s de motor) para LENTO / NORMAL / RAPIDO.
+GARRA_LENTO = 150
+GARRA_NORMAL = 300
+GARRA_RAPIDO = 600
+# Força padrão (% do torque do motor) de cada comando. Vale também para o hold
+# que segura depois. A garra é de PLA: comece baixo e suba só se não segurar.
+GARRA_FORCA = 40            # fechar() e garra_ir_para()
+GARRA_FORCA_ABRIR = 30      # abrir(): sem carga, e no batente não precisa mais
+GARRA_FORCA_APERTAR = 25    # apertar(): fica empurrando sem parar, então pouca
+
 # --- Giro: fechamento em duas fases (método do Baymax) -----------------------
 # Erro maior que GIRO_GROSSO_MIN: manobra de posição (db.turn).
 # Erro pequeno: "creep" por velocidade, proporcional ao erro, até GIRO_TOL_SAI.

@@ -51,15 +51,19 @@ def m2_blocos():
     andar_no_rumo(73, 0, RAPIDO)                               # x≈80: ainda longe do L
     anexo1_ir_para(0)                               # solta com o braço livre
     andar(24, LENTO)                                # encosta e leva a peça ~10 cm
-    # Gira o braço e posiciona a caixa. Força 60 (era 40/50): com 30 ele trava
-    # logo e não gira. Se a engrenagem pular dente aqui, o recolher logo abaixo
-    # refaz o 0.
-    anexo1_ate_travar(ANTI_HORARIO, forca=60, teto_ms=1500)
+    # Gira o braço e posiciona a caixa. Força 50: com 60 a engrenagem pula dente
+    # (rodou -694° sem travar na mesa); com 30 trava logo e não gira. Se pular
+    # dente mesmo assim, o recolher logo abaixo refaz o 0.
+    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
     anexo1_aumentar(15.67)
     andar(-4)                                       # já no rumo 0: andar() alinha sozinho
     virar_ate_travar(-35)                           # para ao encostar
     andar(-7)
-    anexo1_recolher(HORARIO, esperar=False)         # sobe até o batente e refaz o 0
+    # Garra para o 0 por posição (força total), não pelo recolher: com força 30
+    # ela não levanta do fundo, o recolher achava o "batente" logo ali (-177°)
+    # e zerava com a garra embaixo. O 0 ainda vale aqui porque a descida
+    # travou sem pular dente; o recolher do carrinho, já no batente, refina.
+    anexo1_ir_para(0, esperar=False)
     #FIM MISSÃO 5 - RUMO AO PROXIMO ALVO!
     virar_para(25, RAPIDO)
     # Reta + curva + reta: mesmo ponto final de andar(15); virar_para(0);
@@ -70,33 +74,43 @@ def m2_blocos():
     # carrinho, a alavanca e a volta ficam na geometria que já funcionava.
     andar(33.85)
     virar_para(-40)                                 # carrinho: era -35,5; mais negativo = mais ao norte
-    andar(42, LENTO)
+    andar(38, LENTO)                                # era 42: o carrinho passava 2-5 cm da área verde
     anexo1_recolher(HORARIO, esperar=False)
-    # Ré só até onde estava antes do carrinho (x≈150,8 y≈-10). A antiga
-    # andar(-50) ia até (144,3, -14,6), colado no canto do pavimento (mesa
-    # cinza), e o virar_para(0) ali derrubava a mesa.
-    andar(-42, RAPIDO)
+    # Ré só até onde estava antes do carrinho (x≈150,8 y≈-10), com a mesma
+    # distância do empurrão. A antiga andar(-50) ia até (144,3, -14,6), colado
+    # no canto do pavimento (mesa cinza), e o virar_para(0) ali derrubava a mesa.
+    # Em NORMAL, não RAPIDO: com RAPIDO a ré travou ("sem progresso"), as rodas
+    # patinaram e a odometria errou a alavanca e a base.
+    andar(-38)
+    print("POS apos re do carrinho x=%.1f y=%.1f rumo=%.1f (esperado 150.8, -10)" % posicao())
     #FIM MISSÃO NAO SEI O NUMERO - RUMO AO PROXIMO ALVO!
     ir_para(179.3, -14.6)                           # mesma parada de antes na alavanca, pelo norte
     virar_para(0)
     anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500, esperar=False)
-    sacudir(1000)
     virar_ate_travar(90)
     # Braço para o 0 por posição (força total), não pelo recolher: encostado na
     # alavanca, o recolher achava que era o batente e "zerava" com o braço para
     # a frente. O ir_para(0) espera 0,7 s travado antes de desistir, tempo de
     # o robô girar e soltar a alavanca.
     anexo1_ir_para(0, esperar=False)
-    # Volta de frente, refazendo a ida ao contrário, ao norte do pavimento:
-    # 1) da alavanca ao ponto antes do carrinho. O giro continua no sentido
-    #    HORÁRIO (de 90 para ~189), o mesmo que empurrou a alavanca: girar de
-    #    volta arrastava a alavanca e a desativava;
-    # 2) pela faixa y=-10 da ida, onde o pavimento fica mais longe;
-    # 3) diagonal até a base. Chega com a frente para oeste: o x=10 deixa folga
-    #    para o braço não passar da base (ajuste na mesa).
-    ir_para(150.8, -10, RAPIDO)
-    ir_para(116.9, -10, RAPIDO)
-    ir_para(10, 0, RAPIDO)
+    # Volta fluida: um giro no lugar e depois um caminho contínuo, sem parar,
+    # pelo mesmo corredor da volta antiga (alavanca → faixa y=-10 → base):
+    # 1) giro no sentido HORÁRIO (90 → 195), o mesmo que empurrou a alavanca:
+    #    girar de volta arrastava a alavanca e a desativava;
+    # 2) reta e curva até a faixa y=-10 da ida (x≈158), onde o pavimento fica
+    #    mais longe; passa ~1 cm AO NORTE da reta antiga, nunca ao sul;
+    # 3) reta na faixa e curva aberta (raio 1 m) até apontar para a base;
+    # 4) reta até (10, 5). Era (10, 0), mas o robô parou à direita (sul) da
+    #    partida: o y=5 compensa. Parou ainda ao sul? Aumente o 7.99 da curva
+    #    e diminua a última reta (refaça a conta). Ao norte? Diminua.
+    #    Antes: ir_para(150.8,-10) → ir_para(116.9,-10) → ir_para(10,0),
+    #    3 giros e 3 paradas.
+    virar_para(195, RAPIDO)
+    andar(13.82, RAPIDO, parar=False)
+    curva(30, -15, RAPIDO, parar=False)             # rumo 180 em y=-10, x≈158,2
+    andar(34.3, RAPIDO, parar=False)
+    curva(100, 7.99, RAPIDO, parar=False)           # aponta para (10, 5)
+    andar(90.97, RAPIDO)
 
 
 def m3_rampa():
@@ -139,7 +153,15 @@ def m4_epis():
 
 
 def m5_peca():
-    pass
+    apertar()
+    andar(45)
+    virar_para(320)
+    andar_ate_travar(45)
+    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500)
+    anexo2_ate_travar(HORARIO, forca=100, teto_ms=1500)
+    andar(-35)
+    virar_para(0)
+    andar(-50)
 
 
 def m6_carrinho():

@@ -29,9 +29,10 @@ O **botão central durante uma saída** aborta tudo e volta ao menu.
 | `andar_no_rumo(cm, rumo, vel=NORMAL, parar=True)` | Reta no rumo **absoluto** `rumo`, corrigindo a direção o tempo todo: se sair do rumo no caminho, guina de volta andando. Se começar mais de 20° torto (`RUMO_VIRAR_ANTES`), vira no lugar antes. Negativo anda de ré, com a frente no `rumo`. |
 | `girar(graus, vel=NORMAL)` | Giro no lugar, relativo ao rumo desejado. |
 | `virar_para(rumo, vel=NORMAL)` | Gira até o rumo absoluto pelo caminho mais curto. |
+| `andar_ate_travar(max_cm, vel=LENTO, ms=250)` | Anda no rumo atual até encostar em algo (as rodas não avançam 3 mm em `ms` ms), no máximo `max_cm` (negativo = de ré). Corrige a direção andando. Devolve `True` se travou, `False` se chegou ao limite sem encostar; o log mostra `encostou em X cm` ou `AVISO: ... chegou a X cm sem encostar`. Roda que patina conta como avanço: encoste devagar. |
 | `virar_ate_travar(rumo, vel=LENTO, ms=250)` | Como `virar_para`, mas para se o giro travar (o rumo não muda 1° em `ms` ms). O rumo onde parou vira o rumo desejado. Devolve `True` se travou. |
 | `sacudir(ms, cm=1, graus=6)` | Sacode por `ms` milissegundos: vai e volta `cm` para a frente e para trás e vira `graus` para cada lado, em torno do ponto e do rumo onde começou, e no fim volta para eles. Para assentar uma peça, soltar um anexo enroscado ou encaixar algo. `cm=0` só vira; `graus=0` só vai e volta. |
-| `curva(raio_cm, graus, vel=NORMAL)` | Arco; o rumo muda `graus`. |
+| `curva(raio_cm, graus, vel=NORMAL, parar=True)` | Arco; o rumo muda `graus` (+ = direita). `parar=False` emenda no próximo movimento sem frear: `andar`/`curva`/`andar` com `parar=False` viram um caminho contínuo. |
 | `ir_para(x, y, vel=NORMAL, de_re=False)` | Vira e anda até o ponto, usando a posição estimada. |
 | `voltar_base(vel=RAPIDO, de_re=False)` | `ir_para(0, 0)`. |
 | `parar_tudo()` | Para a tração e os anexos. |
@@ -102,6 +103,38 @@ esperar_anexos()                      # garante que os dois terminaram
 ```
 
 Os dois anexos podem estar em movimento ao mesmo tempo. Um novo comando no mesmo anexo substitui o anterior.
+
+## Elevador (porta B) e garra (porta F)
+
+Comandos em **centímetros** para o elevador de fuso e a garra de pinça (`modelos3d/elevador`). Por baixo são os mesmos motores dos anexos (elevador = `anexo2`, garra = `anexo1`): `esperar=False` e `esperar_anexos()` valem igual.
+
+| Comando | O que faz |
+|---|---|
+| `subir(cm=None, vel=NORMAL, forca=100, esperar=True)` | Sobe `cm` a partir da altura medida agora. Sem `cm`, vai ao topo (19,6 cm). |
+| `descer(cm=None, vel=NORMAL, forca=100, esperar=True)` | Desce `cm`. Sem `cm`, vai até embaixo (altura 0). Com força baixa, desce sem esmagar: se encostar, avisa e para ali. |
+| `elevador_ir_para(cm, vel=NORMAL, forca=100, esperar=True)` | Vai à altura absoluta `cm` (0 = embaixo). |
+| `abrir(cm=None, vel=NORMAL, forca=30, esperar=True)` | Abre `cm`. Sem `cm`, abre até o batente e faz dali o 0. |
+| `fechar(cm=None, vel=NORMAL, forca=40, esperar=True)` | Fecha `cm` por posição. Sem `cm`, fecha até travar na peça (ou no fim do curso) e segura: é o jeito de **pegar**. |
+| `apertar(forca=25, vel=LENTO, esperar=True)` | Fecha e **fica apertando**: se a peça escorregar ou ceder, a garra fecha mais sozinha, sempre com no máximo `forca`%. Só para com outro comando de garra (`abrir`, `fechar`, `garra_ir_para`, `anexo1_...`) ou no fim da saída. `esperar=True` devolve quando encosta na peça; o aperto continua. |
+| `garra_ir_para(cm, vel=NORMAL, forca=40, esperar=True)` | Deixa `cm` entre os dedos (de 3 a 6). |
+| `altura_elevador()` · `abertura_garra()` | Altura do carro e distância entre os dedos, em cm. |
+
+- **`vel`** é `LENTO`, `NORMAL` ou `RAPIDO` (traduzidos para graus/s de motor no `config.py`) ou um número em graus/s.
+- **`forca`** é o % do torque do motor (10 a 100). Vale para o movimento **e para o que vem depois**: a garra continua apertando e o elevador continua segurando com essa força. Encostou em algo que a força não vence? O movimento para ali, segura e avisa "travado" (devolve `False`). Os padrões ficam no `config.py` (`ELEVADOR_FORCA`, `GARRA_FORCA`, `GARRA_FORCA_ABRIR`).
+- **Limites.** Nada passa do curso: um pedido fora dele vai até o limite e o log avisa. O 0 é o do início da saída, então **comece com o carro embaixo e a garra aberta**, ou chame `abrir()` primeiro.
+- **O fuso não se segura sozinho.** Só o motor B, travado em posição, segura o carro: com peso e força baixa ele pode ceder. Se a saída abortar, o carro pode descer.
+- Se `subir()` descer ou `fechar()` abrir, troque `ELEVADOR_SOBE` ou `GARRA_FECHA` no `config.py`.
+
+```python
+abrir()                               # garante a garra aberta e o 0 certo
+subir(5, esperar=False)               # sobe 5 cm...
+andar(30)                             # ...enquanto anda
+descer(4, LENTO)                      # desce devagar até a peça
+apertar()                             # pega e fica apertando...
+subir(8, RAPIDO)                      # levanta a peça
+andar(40)                             # ...enquanto leva a peça
+abrir(1)                              # solta (encerra o aperto)
+```
 
 ## Hub
 

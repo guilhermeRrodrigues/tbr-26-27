@@ -123,15 +123,19 @@ def _clamp(v, a, b):
     return max(a, min(b, v))
 
 
-def _taxa_giro(vel):
-    # LENTO/NORMAL/RAPIDO -> graus/s do config; qualquer outro número já é graus/s.
+def _traduzir_vel(vel, lento, normal, rapido):
+    # LENTO/NORMAL/RAPIDO -> o valor do config; qualquer outro número já vale direto.
     if vel == LENTO:
-        return config.GIRO_LENTO
+        return lento
     if vel == NORMAL:
-        return config.GIRO_NORMAL
+        return normal
     if vel == RAPIDO:
-        return config.GIRO_RAPIDO
+        return rapido
     return abs(vel)
+
+
+def _taxa_giro(vel):
+    return _traduzir_vel(vel, config.GIRO_LENTO, config.GIRO_NORMAL, config.GIRO_RAPIDO)
 
 
 def _aplicar_vel(vel, taxa_giro=config.VEL_GIRO):
@@ -463,6 +467,59 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     return ok
 
 
+@_cronometrado("andar_ate_travar")
+def andar_ate_travar(max_cm, vel=LENTO, ms=250):
+    """Anda no rumo desejado até ENCOSTAR em algo, no máximo `max_cm` (negativo =
+    de ré). Encostar = as rodas não avançam 3 mm em `ms` milissegundos (parede,
+    peça, borda da mesa). Corrige a direção andando, como o andar_no_rumo.
+    Devolve True se travou e False se chegou ao limite sem encostar.
+    Ao travar, solta as rodas sem tentar corrigir o rumo (encostado, o giro
+    fino brigaria com a parede). Roda que patina continua contando como
+    avanço: encoste devagar (LENTO)."""
+    _creep()                                     # sai alinhado ao rumo
+    alvo_mm = abs(max_cm) * 10.0
+    sentido = 1.0 if max_cm >= 0 else -1.0
+    v_max = abs(vel)
+    _aplicar_vel(vel)                            # aceleração do db.drive
+    d0 = db.distance()
+    cron = StopWatch()
+    teto = _teto(alvo_mm / v_max * 1000)
+    d_ref = d0
+    t_ref = 0
+    travou = False
+    while True:
+        _checar()
+        d = db.distance()
+        restante = alvo_mm - abs(d - d0)
+        if restante <= 0:
+            break
+        t = cron.time()
+        if t > teto:
+            print("AVISO: andar_ate_travar estourou o teto de %d ms" % teto)
+            break
+        if abs(d - d_ref) >= 3:
+            d_ref = d
+            t_ref = t
+        elif t - t_ref > ms:
+            travou = True
+            break
+        # Rampa de frenagem só para não passar do limite.
+        v = min(v_max, max(config.RUMO_VEL_FINAL, sqrt(2.0 * config.ACEL_RETA * restante)))
+        db.drive(sentido * v, _taxa_correcao(_erro_rumo()))
+        wait(config.PERIODO_MS)
+    db.brake()
+    andou_cm = abs(db.distance() - d0) / 10.0
+    if travou:
+        print("andar_ate_travar: encostou em %.1f cm" % andou_cm)
+    else:
+        print("AVISO: andar_ate_travar chegou a %.1f cm sem encostar" % andou_cm)
+    _atualizar_pose()
+    if not travou:
+        _creep()
+    db.stop()
+    return travou
+
+
 @_cronometrado("girar")
 def girar(graus, vel=NORMAL):
     """Gira no lugar `graus` (positivo = horário/direita) a partir do rumo desejado.
@@ -601,18 +658,23 @@ def sacudir(ms, cm=config.SACUDIR_CM, graus=config.SACUDIR_GRAUS):
 
 
 @_cronometrado("curva")
-def curva(raio_cm, graus, vel=NORMAL):
-    """Anda em arco de raio `raio_cm`, mudando o rumo em `graus` (+ = direita)."""
+def curva(raio_cm, graus, vel=NORMAL, parar=True):
+    """Anda em arco de raio `raio_cm`, mudando o rumo em `graus` (+ = direita).
+
+    parar=False emenda no próximo movimento sem frear, como em andar(): uma
+    sequência andar/curva/andar com parar=False vira um caminho contínuo.
+    """
     global _rumo_alvo
     _creep()
     _aplicar_vel(vel)
-    db.curve(raio_cm * 10, graus, wait=False)
+    db.curve(raio_cm * 10, graus, then=Stop.HOLD if parar else Stop.NONE, wait=False)
     comprimento = abs(raio_cm * 10 * graus * pi / 180.0)
     ok = _esperar_db(_teto(comprimento / abs(vel) * 1000 + abs(graus) / config.VEL_GIRO * 1000),
                      progresso=True)
     _rumo_alvo = _rumo_alvo + graus
-    ok = _creep() and ok
-    db.stop()
+    if parar:
+        ok = _creep() and ok
+        db.stop()
     return ok
 
 
@@ -877,11 +939,35 @@ _ALVO = 0           # run_angle / run_target: acaba quando o motor chega
 _TRAVAR = 1         # dc até parar: acaba quando o motor trava
 _MOTORES = (_anexo1, _anexo2)
 _RECOLHER_AVISO_GRAUS = 30   # recolher achou o batente mais longe que isto do 0: avisa
+# Força dos comandos por posição = limite de torque do controle do motor, em %
+# do torque de fábrica. Vale também para o hold que segura o anexo depois.
+_TORQUE_MAX = [m.control.limits()[2] for m in _MOTORES]
+_forca = [100, 100]          # % aplicado agora em cada motor
 
 
-def _lancar(i, modo, teto_ms, zerar=False):
-    # [modo, cron, teto, desde, zerar]: zerar = ao travar, ali vira o ângulo 0
-    _tarefa[i] = [modo, StopWatch(), teto_ms, None, zerar]
+def _aplicar_forca(i, forca):
+    f = _clamp(forca, 10, 100)
+    if f == _forca[i]:
+        return
+    m = _MOTORES[i]
+    torque = int(_TORQUE_MAX[i] * f / 100)
+    try:
+        m.control.limits(torque=torque)
+    except Exception:
+        # Firmware que não deixa mudar o limite com o controle ativo: solta o
+        # motor por um instante e tenta de novo.
+        m.stop()
+        m.control.limits(torque=torque)
+    _forca[i] = f
+
+
+def _lancar(i, modo, teto_ms, zerar=False, sentido=1, limite=None, continuar=False):
+    # [modo, cron, teto, desde, zerar, sentido, limite, continuar]
+    # zerar = ao travar, ali vira o ângulo 0; limite = ângulo que o modo _TRAVAR
+    # não passa (None = sem limite), no `sentido` em que o motor empurra;
+    # continuar = ao travar (ou no teto), a tarefa acaba mas o motor CONTINUA
+    # empurrando, sem hold (o apertar()).
+    _tarefa[i] = [modo, StopWatch(), teto_ms, None, zerar, sentido, limite, continuar]
     _resultado[i] = True
 
 
@@ -918,8 +1004,13 @@ def _vigiar_anexos():
             # preso) e então segura. run_until_stalled não serve: não tem teto
             # e prende o programa se nunca travar.
             if t > tarefa[2]:
-                m.hold()
+                if not tarefa[7]:
+                    m.hold()
                 print("AVISO: anexo%d nao travou em %d ms (em %d graus)" % (i + 1, tarefa[2], m.angle()))
+                _encerrar(i, False)
+            elif tarefa[6] is not None and tarefa[5] * (m.angle() - tarefa[6]) >= 0:
+                m.hold()
+                print("AVISO: anexo%d passou do limite (%d graus) sem travar" % (i + 1, tarefa[6]))
                 _encerrar(i, False)
             elif t < 150:
                 pass                            # deixa o motor arrancar
@@ -933,7 +1024,8 @@ def _vigiar_anexos():
                             print("AVISO: anexo%d recolhido com o batente em %d graus "
                                   "(dente pulou?), zero refeito" % (i + 1, a))
                         m.reset_angle(0)
-                    m.hold()
+                    if not tarefa[7]:
+                        m.hold()
                     _encerrar(i, True)
             else:
                 tarefa[3] = None
@@ -947,12 +1039,14 @@ def _aguardar(i):
 
 
 def _girar_anexo(i, graus, vel, esperar):
+    _aplicar_forca(i, 100)
     _MOTORES[i].run_angle(vel, graus, then=Stop.HOLD, wait=False)
     _lancar(i, _ALVO, _teto(abs(graus) / abs(vel) * 1000))
     return _aguardar(i) if esperar else True
 
 
-def _anexo_para(i, angulo, vel, esperar):
+def _anexo_para(i, angulo, vel, esperar, forca=100):
+    _aplicar_forca(i, forca)
     m = _MOTORES[i]
     teto = _teto(abs(angulo - m.angle()) / abs(vel) * 1000)
     m.run_target(vel, angulo, then=Stop.HOLD, wait=False)
@@ -960,9 +1054,21 @@ def _anexo_para(i, angulo, vel, esperar):
     return _aguardar(i) if esperar else True
 
 
-def _anexo_travar(i, sentido, forca, teto_ms, esperar, zerar=False):
+def _anexo_travar(i, sentido, forca, teto_ms, esperar, zerar=False, limite=None):
+    _aplicar_forca(i, 100)      # o hold depois de travar segura com tudo
     _MOTORES[i].dc(sentido * _clamp(forca, 10, 100))
-    _lancar(i, _TRAVAR, teto_ms, zerar)
+    _lancar(i, _TRAVAR, teto_ms, zerar, sentido, limite)
+    return _aguardar(i) if esperar else True
+
+
+def _anexo_empurrar(i, sentido, vel, forca, teto_ms, esperar, zerar=False, limite=None,
+                    continuar=False):
+    # Como _anexo_travar, mas com velocidade controlada e torque limitado em
+    # vez de duty fixo: o hold que segura depois também fica com essa força.
+    # Abaixo de 60 graus/s o vigia confundiria andar devagar com travar.
+    _aplicar_forca(i, forca)
+    _MOTORES[i].run(sentido * max(60, abs(vel)))
+    _lancar(i, _TRAVAR, teto_ms, zerar, sentido, limite, continuar)
     return _aguardar(i) if esperar else True
 
 
@@ -1070,6 +1176,129 @@ def angulo_anexo1():
 
 def angulo_anexo2():
     return _anexo2.angle()
+
+
+# ===================================================================================
+# ELEVADOR (anexo2, porta B) E GARRA (anexo1, porta F)
+# ===================================================================================
+# Comandos em centímetros sobre os anexos de modelos3d/elevador. Por baixo são
+# os mesmos motores e tarefas vigiadas dos anexos: esperar=False funciona igual,
+# esperar_anexos() espera por eles e os anexo1_/anexo2_ continuam valendo.
+# Os limites de curso são em software, contados do 0 que o menu faz no início
+# de cada saída: comece com o carro EMBAIXO e a garra ABERTA (ou chame abrir()).
+_FOLGA_LIMITE_GRAUS = 20    # abrir()/fechar() por força: margem além do curso
+
+
+def _elevador(alvo_cm, vel, forca, esperar, nome):
+    alvo = _clamp(alvo_cm, 0.0, config.ELEVADOR_CURSO_CM)
+    if abs(alvo - alvo_cm) > 0.05:
+        print("AVISO: %s: %.1f cm fora do curso (0 a %.1f), vai a %.1f"
+              % (nome, alvo_cm, config.ELEVADOR_CURSO_CM, alvo))
+    graus = config.ELEVADOR_SOBE * alvo * config.ELEVADOR_GRAUS_CM
+    taxa = _traduzir_vel(vel, config.ELEVADOR_LENTO, config.ELEVADOR_NORMAL, config.ELEVADOR_RAPIDO)
+    return _anexo_para(1, graus, taxa, esperar, forca)
+
+
+def altura_elevador():
+    """Altura do carro em cm acima do ponto de partida (0 = embaixo)."""
+    return config.ELEVADOR_SOBE * _anexo2.angle() / config.ELEVADOR_GRAUS_CM
+
+
+@_cronometrado("subir")
+def subir(cm=None, vel=NORMAL, forca=config.ELEVADOR_FORCA, esperar=True):
+    """Sobe o carro do elevador `cm` a partir da altura medida agora. Sem `cm`,
+    vai até o topo do curso. vel = LENTO/NORMAL/RAPIDO ou graus/s de motor.
+    forca = % do torque do motor, que vale também para SEGURAR o carro depois
+    (o fuso não se auto-trava: força baixa com peso pode deixar descer).
+    esperar=False: sobe enquanto o robô anda. Não passa do curso (avisa)."""
+    alvo = config.ELEVADOR_CURSO_CM if cm is None else altura_elevador() + cm
+    return _elevador(alvo, vel, forca, esperar, "subir")
+
+
+@_cronometrado("descer")
+def descer(cm=None, vel=NORMAL, forca=config.ELEVADOR_FORCA, esperar=True):
+    """Desce o carro `cm` a partir da altura medida agora. Sem `cm`, vai até
+    embaixo (altura 0). Força baixa = desce sem esmagar o que estiver embaixo:
+    se encostar, avisa "travado" e para ali. Não passa do curso (avisa)."""
+    alvo = 0.0 if cm is None else altura_elevador() - cm
+    return _elevador(alvo, vel, forca, esperar, "descer")
+
+
+@_cronometrado("elevador_ir_para")
+def elevador_ir_para(cm, vel=NORMAL, forca=config.ELEVADOR_FORCA, esperar=True):
+    """Leva o carro à altura ABSOLUTA `cm` (0 = embaixo, máx. ELEVADOR_CURSO_CM)."""
+    return _elevador(cm, vel, forca, esperar, "elevador_ir_para")
+
+
+def _garra(abertura_cm, vel, forca, esperar, nome):
+    minimo = config.GARRA_ABERTA_CM - config.GARRA_CURSO_CM
+    alvo = _clamp(abertura_cm, minimo, config.GARRA_ABERTA_CM)
+    if abs(alvo - abertura_cm) > 0.05:
+        print("AVISO: %s: abertura de %.1f cm fora do curso (%.1f a %.1f), vai a %.1f"
+              % (nome, abertura_cm, minimo, config.GARRA_ABERTA_CM, alvo))
+    graus = config.GARRA_FECHA * (config.GARRA_ABERTA_CM - alvo) * config.GARRA_GRAUS_CM
+    return _anexo_para(0, graus, _taxa_garra(vel), esperar, forca)
+
+
+def _taxa_garra(vel):
+    return _traduzir_vel(vel, config.GARRA_LENTO, config.GARRA_NORMAL, config.GARRA_RAPIDO)
+
+
+def _limite_garra(sentido):
+    # Ângulo que a garra não passa empurrando por força: o curso inteiro a
+    # partir de AGORA, mais a folga. Vale mesmo se o 0 estiver errado.
+    curso = config.GARRA_CURSO_CM * config.GARRA_GRAUS_CM + _FOLGA_LIMITE_GRAUS
+    return _anexo1.angle() + sentido * curso
+
+
+def abertura_garra():
+    """Distância entre os dedos em cm (GARRA_ABERTA_CM = aberta no batente)."""
+    return config.GARRA_ABERTA_CM - config.GARRA_FECHA * _anexo1.angle() / config.GARRA_GRAUS_CM
+
+
+@_cronometrado("abrir")
+def abrir(cm=None, vel=NORMAL, forca=config.GARRA_FORCA_ABRIR, esperar=True):
+    """Abre a garra `cm` a partir da abertura medida agora. Sem `cm`, abre até o
+    batente e faz dali o 0: use no início da saída se a garra não começou
+    aberta. vel = LENTO/NORMAL/RAPIDO ou graus/s de motor; forca = % do torque."""
+    if cm is None:
+        sentido = -config.GARRA_FECHA
+        return _anexo_empurrar(0, sentido, _taxa_garra(vel), forca, 1500, esperar,
+                               True, _limite_garra(sentido))
+    return _garra(abertura_garra() + cm, vel, forca, esperar, "abrir")
+
+
+@_cronometrado("fechar")
+def fechar(cm=None, vel=NORMAL, forca=config.GARRA_FORCA, esperar=True):
+    """Fecha a garra `cm` a partir da abertura medida agora (se encostar numa
+    peça antes, avisa "travado" e segura ali). Sem `cm`, fecha até travar na
+    peça ou no fim do curso e segura: é o jeito de PEGAR algo. forca = % do
+    torque, com que ela aperta e continua segurando."""
+    if cm is None:
+        sentido = config.GARRA_FECHA
+        return _anexo_empurrar(0, sentido, _taxa_garra(vel), forca, 1500, esperar,
+                               False, _limite_garra(sentido))
+    return _garra(abertura_garra() - cm, vel, forca, esperar, "fechar")
+
+
+@_cronometrado("apertar")
+def apertar(forca=config.GARRA_FORCA_APERTAR, vel=LENTO, esperar=True):
+    """Fecha a garra e fica SEMPRE empurrando com `forca`% do torque: se a peça
+    escorregar ou ceder, a garra fecha mais sozinha. Não termina por conta
+    própria: continua até outro comando de garra (abrir, fechar,
+    garra_ir_para, anexo1_...) ou o fim da saída. esperar=True devolve quando
+    a garra encosta (o aperto continua); esperar=False devolve na hora.
+    Força baixa: o motor fica parado empurrando, e é isso que ele aguenta."""
+    sentido = config.GARRA_FECHA
+    return _anexo_empurrar(0, sentido, _taxa_garra(vel), forca, 1500, esperar,
+                           False, _limite_garra(sentido), True)
+
+
+@_cronometrado("garra_ir_para")
+def garra_ir_para(cm, vel=NORMAL, forca=config.GARRA_FORCA, esperar=True):
+    """Deixa `cm` entre os dedos (de GARRA_ABERTA_CM - GARRA_CURSO_CM até
+    GARRA_ABERTA_CM), por posição."""
+    return _garra(cm, vel, forca, esperar, "garra_ir_para")
 
 
 # ===================================================================================
