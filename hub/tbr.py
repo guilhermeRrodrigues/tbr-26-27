@@ -324,9 +324,45 @@ def _graus_motor(vel_mm):
     return vel_mm * 360.0 / (pi * cal["roda"])
 
 
+# --- Cronômetro por comando (config.CRONOMETRO) ----------------------------------
+# Cada comando da linguagem imprime quanto levou DE VERDADE no robô, para achar
+# onde o tempo de uma saída vai. Só o comando de fora imprime: ir_para() que
+# chama virar_para() e andar() aparece como uma linha só.
+_cron_nivel = 0
+
+
+def _fmt(v):
+    if isinstance(v, float):
+        return "%g" % v
+    return str(v)
+
+
+def _cronometrado(nome):
+    def envolver(f):
+        if not config.CRONOMETRO:
+            return f
+
+        def w(*args, **kw):
+            global _cron_nivel
+            _cron_nivel += 1
+            cron = StopWatch()
+            try:
+                return f(*args, **kw)
+            finally:
+                _cron_nivel -= 1
+                if _cron_nivel == 0:
+                    partes = [_fmt(a) for a in args]
+                    for k in kw:
+                        partes.append("%s=%s" % (k, _fmt(kw[k])))
+                    print("T %6d ms  %s(%s)" % (cron.time(), nome, ", ".join(partes)))
+        return w
+    return envolver
+
+
 # ===================================================================================
 # MOVIMENTO
 # ===================================================================================
+@_cronometrado("andar")
 def andar(cm, vel=NORMAL, parar=True):
     """Anda `cm` centímetros mantendo o rumo atual (negativo = de ré).
 
@@ -342,6 +378,7 @@ def andar(cm, vel=NORMAL, parar=True):
     return ok
 
 
+@_cronometrado("andar_no_rumo")
 def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     """Anda `cm` centímetros no rumo ABSOLUTO `rumo`, corrigindo a direção o
     tempo todo (negativo = de ré, com a frente apontando para `rumo`).
@@ -403,6 +440,7 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     return ok
 
 
+@_cronometrado("girar")
 def girar(graus, vel=NORMAL):
     """Gira no lugar `graus` (positivo = horário/direita) a partir do rumo desejado.
 
@@ -415,6 +453,7 @@ def girar(graus, vel=NORMAL):
     return ok
 
 
+@_cronometrado("virar_para")
 def virar_para(rumo, vel=NORMAL):
     """Gira até o rumo ABSOLUTO `rumo` pelo caminho mais curto.
 
@@ -427,6 +466,7 @@ def virar_para(rumo, vel=NORMAL):
     return ok
 
 
+@_cronometrado("virar_ate_travar")
 def virar_ate_travar(rumo, vel=LENTO, ms=250):
     """Gira rumo ao rumo ABSOLUTO `rumo`, mas para antes se o robô TRAVAR.
 
@@ -488,6 +528,7 @@ def _esperar_passo_sacudida(cron, ms):
             return
 
 
+@_cronometrado("sacudir")
 def sacudir(ms, cm=config.SACUDIR_CM, graus=config.SACUDIR_GRAUS):
     """Sacode o robô por `ms` milissegundos: vai e volta `cm` para a frente e
     para trás e vira `graus` para cada lado, sempre em torno do ponto e do rumo
@@ -536,6 +577,7 @@ def sacudir(ms, cm=config.SACUDIR_CM, graus=config.SACUDIR_GRAUS):
     return ok
 
 
+@_cronometrado("curva")
 def curva(raio_cm, graus, vel=NORMAL):
     """Anda em arco de raio `raio_cm`, mudando o rumo em `graus` (+ = direita)."""
     global _rumo_alvo
@@ -550,6 +592,7 @@ def curva(raio_cm, graus, vel=NORMAL):
     return ok
 
 
+@_cronometrado("ir_para")
 def ir_para(x, y, vel=NORMAL, de_re=False):
     """Vira para o ponto (x, y) em cm e anda até ele (pela odometria)."""
     dx = x - _x
@@ -565,6 +608,7 @@ def ir_para(x, y, vel=NORMAL, de_re=False):
     return andar(dist, vel) and ok
 
 
+@_cronometrado("voltar_base")
 def voltar_base(vel=RAPIDO, de_re=False):
     """Volta ao ponto de partida da saída (x=0, y=0)."""
     return ir_para(0, 0, vel, de_re)
@@ -598,6 +642,7 @@ def cor(sensor):
     return _sensor(sensor).color()
 
 
+@_cronometrado("ate_linha")
 def ate_linha(cor_alvo=PRETO, sensor=QUALQUER, vel=LENTO, max_cm=50):
     """Anda reto (vel negativa = de ré) até um sensor ver `cor_alvo`.
 
@@ -657,6 +702,7 @@ def _quadrar(vel_mm, cor_alvo, max_cm):
     return True
 
 
+@_cronometrado("alinhar_na_linha")
 def alinhar_na_linha(vel=LENTO, max_cm=30, rumo=None, fino=True):
     """Para com os DOIS sensores sobre a borda de uma linha preta à frente.
 
@@ -727,6 +773,7 @@ def _seguir(sensor, borda, vel, kp, kd, max_cm, parar_quando):
     return chegou
 
 
+@_cronometrado("seguir_linha")
 def seguir_linha(cm, sensor=DIR, borda=ESQ, vel=config.SEGUIR_VEL, kp=None, kd=None):
     """Segue a BORDA de uma linha por `cm` centímetros.
 
@@ -737,6 +784,7 @@ def seguir_linha(cm, sensor=DIR, borda=ESQ, vel=config.SEGUIR_VEL, kp=None, kd=N
     return _seguir(sensor, borda, vel, kp, kd, cm, None)
 
 
+@_cronometrado("seguir_linha_ate_cruzamento")
 def seguir_linha_ate_cruzamento(sensor=DIR, borda=ESQ, vel=config.SEGUIR_VEL,
                                 max_cm=150, kp=None, kd=None):
     """Segue a linha com `sensor` até o OUTRO sensor ver preto (cruzamento ou
@@ -886,6 +934,7 @@ def _anexo_travar(i, sentido, forca, teto_ms, esperar):
     return _aguardar(i) if esperar else True
 
 
+@_cronometrado("anexo1")
 def anexo1(graus, vel=config.VEL_ANEXO, esperar=True):
     """Gira o motor do anexo 1 (porta F) `graus` relativos.
     esperar=False: devolve na hora e o anexo se mexe enquanto o robô anda,
@@ -893,21 +942,25 @@ def anexo1(graus, vel=config.VEL_ANEXO, esperar=True):
     return _girar_anexo(0, graus, vel, esperar)
 
 
+@_cronometrado("anexo2")
 def anexo2(graus, vel=config.VEL_ANEXO, esperar=True):
     """Gira o motor do anexo 2 (porta B) `graus` relativos."""
     return _girar_anexo(1, graus, vel, esperar)
 
 
+@_cronometrado("anexo1_ir_para")
 def anexo1_ir_para(angulo, vel=config.VEL_ANEXO, esperar=True):
     """Leva o anexo 1 ao ângulo ABSOLUTO `angulo` (0 = onde foi zerado)."""
     return _anexo_para(0, angulo, vel, esperar)
 
 
+@_cronometrado("anexo2_ir_para")
 def anexo2_ir_para(angulo, vel=config.VEL_ANEXO, esperar=True):
     """Leva o anexo 2 ao ângulo ABSOLUTO `angulo`."""
     return _anexo_para(1, angulo, vel, esperar)
 
 
+@_cronometrado("anexo1_aumentar")
 def anexo1_aumentar(graus, vel=config.VEL_ANEXO, esperar=True):
     """Soma `graus` ao ângulo MEDIDO AGORA do anexo 1 (negativo diminui).
 
@@ -918,17 +971,20 @@ def anexo1_aumentar(graus, vel=config.VEL_ANEXO, esperar=True):
     return _anexo_para(0, _anexo1.angle() + graus, vel, esperar)
 
 
+@_cronometrado("anexo2_aumentar")
 def anexo2_aumentar(graus, vel=config.VEL_ANEXO, esperar=True):
     """Soma `graus` ao ângulo MEDIDO AGORA do anexo 2 (negativo diminui)."""
     return _anexo_para(1, _anexo2.angle() + graus, vel, esperar)
 
 
+@_cronometrado("anexo1_ate_travar")
 def anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
     """Gira o anexo 1 até travar (garra fechando, braço no fim de curso).
     esperar=False: fecha enquanto o robô se mexe."""
     return _anexo_travar(0, sentido, forca, teto_ms, esperar)
 
 
+@_cronometrado("anexo2_ate_travar")
 def anexo2_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
     """Gira o anexo 2 até travar."""
     return _anexo_travar(1, sentido, forca, teto_ms, esperar)
@@ -940,6 +996,7 @@ def zerar_anexos():
     _anexo2.reset_angle(0)
 
 
+@_cronometrado("esperar_anexos")
 def esperar_anexos(teto_ms=5000):
     """Espera os anexos lançados com esperar=False terminarem. Devolve False se
     algum travou, estourou o próprio teto ou passou de `teto_ms` aqui."""
@@ -991,6 +1048,7 @@ def luz(c):
     hub.light.on(c)
 
 
+@_cronometrado("esperar")
 def esperar(ms):
     """Pausa que continua respondendo ao botão de abortar."""
     cron = StopWatch()

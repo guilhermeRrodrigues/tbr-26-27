@@ -112,6 +112,18 @@ Os dois anexos podem estar em movimento ao mesmo tempo. Um novo comando no mesmo
 | `tempo_partida()` · `tempo_restante()` | Cronômetro de 120 s, que começa na 1ª saída. |
 | `hub`, `db` | Objetos do Pybricks (`PrimeHub`, `DriveBase`), para casos avançados. |
 
+### Onde vai o tempo de uma saída
+
+Com `CRONOMETRO = True` no `config.py`, cada comando imprime no terminal do `tbr rodar` quanto levou **no robô de verdade**:
+
+```
+T    812 ms  andar(77, 450)
+T    164 ms  anexo1_ir_para(0)
+T   1640 ms  andar(24, 150)
+```
+
+Só o comando de fora aparece: um `ir_para()` vira uma linha só, mesmo chamando `virar_para()` e `andar()` por dentro. Os números são o que conta para otimizar, porque o `tbr simular` não sabe quanto tempo o robô passa corrigindo o rumo nem quanto um anexo demora para travar.
+
 ## Exemplo de saída
 
 ```python

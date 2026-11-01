@@ -49,7 +49,10 @@ BRANCO_PADRAO = 90
 VEL_LENTO = 150
 VEL_NORMAL = 300
 VEL_RAPIDO = 450
-ACEL_RETA = 600         # mm/s^2
+# Aceleração: quanto maior, menos tempo arrancando e freando em cada comando.
+# 800 / 1000 conferido na mesa (era 600 / 720). Próximo degrau: 1000 / 1200;
+# se patinar na arrancada ou a peça escorregar no anexo, volte um degrau.
+ACEL_RETA = 800         # mm/s^2
 VEL_GIRO = 180          # graus/s no giro grosso (padrão = NORMAL)
 # girar(90, LENTO) / virar_para(-180, RAPIDO): as constantes de velocidade da
 # reta valem também no giro, traduzidas para estes graus/s. Um número que não
@@ -57,7 +60,7 @@ VEL_GIRO = 180          # graus/s no giro grosso (padrão = NORMAL)
 GIRO_LENTO = 90
 GIRO_NORMAL = VEL_GIRO
 GIRO_RAPIDO = 300
-ACEL_GIRO = 720         # graus/s^2
+ACEL_GIRO = 1000        # graus/s^2
 
 # Velocidade dos anexos (graus/s de motor)
 VEL_ANEXO = 500
@@ -103,6 +106,11 @@ STALL_ABORTA_MS = 700   # travado por mais que isto => aborta o movimento
 TETO_MIN_MS = 2000      # nenhum movimento tem teto menor que isto
 # Teto de cada movimento = TETO_FATOR x tempo teórico + TETO_MIN_MS.
 TETO_FATOR = 3
+
+# Cronômetro por comando: com True, cada comando da linguagem imprime quanto
+# levou (aparece no terminal do `tbr rodar`). Sem PC conectado o print não
+# vai a lugar nenhum, mas na competição pode deixar False.
+CRONOMETRO = True
 
 # Duração da partida (s). O cronômetro começa na 1ª saída e não para.
 PARTIDA_S = 120

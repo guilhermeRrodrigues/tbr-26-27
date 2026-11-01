@@ -18,26 +18,15 @@ def m1_gangorra():
     Pontua com o lado LESTE (menino) tocando o tapete E o apoio central (peças
     azuis) tocando a área verde-escura. A gangorra é solta, sem fixação.
     """
-    # EXEMPLO DE FORMA — todos os números são fictícios: troque pelos medidos
-    # na mesa. Teste com: tbr simular 1  e depois  tbr rodar
-
-    # 1. Sair da base
     andar(20)                     # cm para a frente (leste)
     virar_para(90, RAPIDO)
     andar(20)
-    anexo1(-200, RAPIDO)
+    anexo1(-200)                  # VEL_ANEXO padrão (RAPIDO aqui seria 450°/s, mais lento)
     esperar(300)
-    anexo1_ir_para(0)
+    anexo1_ir_para(0, esperar=False)  # o braço volta durante a ré
     andar(-23)
     virar_para(0, RAPIDO)
     andar(-25)
-
-    
-
-    # 4. Ver onde o robô acha que está (aparece no terminal do `tbr rodar`)
-    print(posicao())
-
-    # 5. Voltar para a base
 
 
 def m2_blocos():
@@ -47,49 +36,47 @@ def m2_blocos():
     em pé na posição inicial; +25 de bônus com os 3. Pavimento tombado = 0.
     """
     # Usado como saída 2, levando a peça da M5.
-    # Ajuste fino na mesa: o recuo de 29 (lado norte do robô passando rente,
-    # sem tocar o quadrado de cima do L) e o andar(16, LENTO) do empurrão final.
+    # Ajuste fino na mesa: o recuo andar(-31) (lado norte do robô passando rente,
+    # sem tocar o quadrado de cima do L) e o andar(24, LENTO) do empurrão final.
     # A peça solta fica 6 cm à frente do para-choque: os primeiros 6 cm do
     # empurrão só encostam nela.
     andar(8.5)
     virar_para(-23)
-    andar(32)                                       # chega na peça
+    andar(32, RAPIDO)                               # chega na peça
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)   # prende sem esmagar
     andar(-31)                                      # y≈1,2
-    virar_para(0)
-    andar(77)                                       # x≈80: ainda longe do L
+    virar_para(0, RAPIDO)
+    andar(77, RAPIDO)                               # x≈80: ainda longe do L
     anexo1_ir_para(0)                               # solta com o braço livre
-    print("anexo1 depois de soltar: %d" % angulo_anexo1())
-    andar(24, LENTO)                               # encosta e leva a peça ~10 cm                               # sai sem enganchar                                      # x≈20
+    andar(24, LENTO)                                # encosta e leva a peça ~10 cm
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
     anexo1_aumentar(15.67)
-    virar_para(0)
-    andar(-4)
+    andar(-4)                                       # já no rumo 0: andar() alinha sozinho
     virar_ate_travar(-35)                           # para ao encostar
     andar(-7)
-    anexo1_ir_para(0)
-    virar_para(0)
+    anexo1_ir_para(0, esperar=False)                # o braço volta enquanto gira
     #FIM MISSÃO 5 - RUMO AO PROXIMO ALVO!
-    virar_para(25)
-    andar(15)
-    virar_para(0)
-    andar(36.5)
+    virar_para(25, RAPIDO)
+    # Reta + curva + reta: mesmo ponto final de andar(15); virar_para(0);
+    # andar(36.5), sem parar no canto (passa até 0,7 cm por dentro dele).
+    andar(8.35, parar=False)
+    curva(30, -25)
+    andar(29.85)
     virar_para(-35.5)
     andar(42, LENTO)
     anexo1_ir_para(0, esperar=False)
-    andar(-50)
+    andar(-50, RAPIDO)
     #FIM MISSÃO NAO SEI O NUMERO - RUMO AO PROXIMO ALVO!
     virar_para(0)
     andar(35)
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500, esperar=False)
-    sacudir(2500)
+    sacudir(1000)
     virar_ate_travar(90)
     anexo1_ir_para(0, esperar=False)
-    virar_para(180)
-    andar(167)
+    virar_para(180, RAPIDO)
+    andar(167, RAPIDO)
     virar_para(-90)
     andar(12.67)
-    
 
 
 def m3_rampa():
@@ -100,7 +87,6 @@ def m3_rampa():
     andar_no_rumo(21, 0)
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
     andar_no_rumo(-40, 0)
-    esperar(1000)
     andar(20)
     virar_para(90, LENTO)
     andar(-2)
@@ -114,21 +100,22 @@ def m4_epis():
     vermelho 30. Os EPIs ficam com a equipe na base e saem levados pelo robô.
     """
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
-    anexo1_aumentar(35)
-    andar_no_rumo(70, 0)
-    virar_para(25)
-    andar(40)
-    virar_para(0)
-    andar(36)
+    anexo1_aumentar(35, esperar=False)  # o braço sobe enquanto sai
+    andar_no_rumo(70, 0, RAPIDO)
+    virar_para(25, RAPIDO)
+    # Reta + curva + reta: mesmo ponto final de andar(40); virar_para(0);
+    # andar(36), sem parar no canto (passa até 0,7 cm por dentro dele).
+    andar(33.35, parar=False)
+    curva(30, -25)
+    andar(29.35)
     virar_para(-60, LENTO)
     andar_no_rumo(54, -55, RAPIDO)
     virar_para(-90, LENTO)
     anexo1_ir_para(0)
     andar(5)
     andar(-38, RAPIDO)
-    virar_para(0)
-    andar(-200)
-        
+    virar_para(0, RAPIDO)
+    andar(-200, RAPIDO)  # volta para a base
 
 
 def m5_peca():
