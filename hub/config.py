@@ -103,6 +103,9 @@ LIMIAR_BRANCO = 75
 # --- Segurança ----------------------------------------------------------------
 PERIODO_MS = 10         # período dos laços de controle
 STALL_ABORTA_MS = 700   # travado por mais que isto => aborta o movimento
+# Andando sem sair do lugar (encostado em algo que cede): menos que isto em
+# STALL_ABORTA_MS => aborta a reta ou a curva.
+PROGRESSO_MIN_MM = 10
 TETO_MIN_MS = 2000      # nenhum movimento tem teto menor que isto
 # Teto de cada movimento = TETO_FATOR x tempo teórico + TETO_MIN_MS.
 TETO_FATOR = 3

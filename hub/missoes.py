@@ -46,37 +46,55 @@ def m2_blocos():
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)   # prende sem esmagar
     andar(-31)                                      # y≈1,2
     virar_para(0, RAPIDO)
-    andar(77, RAPIDO)                               # x≈80: ainda longe do L
+    andar_no_rumo(73, 0, RAPIDO)                               # x≈80: ainda longe do L
     anexo1_ir_para(0)                               # solta com o braço livre
     andar(24, LENTO)                                # encosta e leva a peça ~10 cm
+    # Gira o braço e posiciona a caixa. Precisa de força 40: com 30 ele trava
+    # logo e não gira. Se a engrenagem pular dente aqui, o recolher logo abaixo
+    # refaz o 0.
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
     anexo1_aumentar(15.67)
     andar(-4)                                       # já no rumo 0: andar() alinha sozinho
     virar_ate_travar(-35)                           # para ao encostar
     andar(-7)
-    anexo1_ir_para(0, esperar=False)                # o braço volta enquanto gira
+    anexo1_recolher(HORARIO, esperar=False)         # sobe até o batente e refaz o 0
     #FIM MISSÃO 5 - RUMO AO PROXIMO ALVO!
     virar_para(25, RAPIDO)
     # Reta + curva + reta: mesmo ponto final de andar(15); virar_para(0);
     # andar(36.5), sem parar no canto (passa até 0,7 cm por dentro dele).
     andar(8.35, parar=False)
     curva(30, -25)
-    andar(29.85)
-    virar_para(-35.5)
+    # +4 cm: devolve o que o andar_no_rumo(73) tirou (era 77). Daqui em diante o
+    # carrinho, a alavanca e a volta ficam na geometria que já funcionava.
+    andar(33.85)
+    virar_para(-40)                                 # carrinho: era -35,5; mais negativo = mais ao norte
     andar(42, LENTO)
-    anexo1_ir_para(0, esperar=False)
-    andar(-50, RAPIDO)
+    anexo1_recolher(HORARIO, esperar=False)
+    # Ré só até onde estava antes do carrinho (x≈150,8 y≈-10). A antiga
+    # andar(-50) ia até (144,3, -14,6), colado no canto do pavimento (mesa
+    # cinza), e o virar_para(0) ali derrubava a mesa.
+    andar(-42, RAPIDO)
     #FIM MISSÃO NAO SEI O NUMERO - RUMO AO PROXIMO ALVO!
+    ir_para(179.3, -14.6)                           # mesma parada de antes na alavanca, pelo norte
     virar_para(0)
-    andar(35)
     anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500, esperar=False)
     sacudir(1000)
     virar_ate_travar(90)
+    # Braço para o 0 por posição (força total), não pelo recolher: encostado na
+    # alavanca, o recolher achava que era o batente e "zerava" com o braço para
+    # a frente. O ir_para(0) espera 0,7 s travado antes de desistir, tempo de
+    # o robô girar e soltar a alavanca.
     anexo1_ir_para(0, esperar=False)
-    virar_para(180, RAPIDO)
-    andar(167, RAPIDO)
-    virar_para(-90)
-    andar(12.67)
+    # Volta de frente, refazendo a ida ao contrário, ao norte do pavimento:
+    # 1) da alavanca ao ponto antes do carrinho. O giro continua no sentido
+    #    HORÁRIO (de 90 para ~189), o mesmo que empurrou a alavanca: girar de
+    #    volta arrastava a alavanca e a desativava;
+    # 2) pela faixa y=-10 da ida, onde o pavimento fica mais longe;
+    # 3) diagonal até a base. Chega com a frente para oeste: o x=10 deixa folga
+    #    para o braço não passar da base (ajuste na mesa).
+    ir_para(150.8, -10, RAPIDO)
+    ir_para(116.9, -10, RAPIDO)
+    ir_para(10, 0, RAPIDO)
 
 
 def m3_rampa():

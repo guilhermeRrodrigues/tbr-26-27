@@ -324,6 +324,18 @@ def anexo2_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
     return True
 
 
+def anexo1_recolher(sentido=HORARIO, forca=30, teto_ms=1500, esperar=True):
+    _anexos[0] = 0.0
+    _passo("anexo1_recolher()", 0.4 if esperar else 0.0)
+    return True
+
+
+def anexo2_recolher(sentido=HORARIO, forca=30, teto_ms=1500, esperar=True):
+    _anexos[1] = 0.0
+    _passo("anexo2_recolher()", 0.4 if esperar else 0.0)
+    return True
+
+
 def zerar_anexos():
     _anexos[0] = _anexos[1] = 0.0
 

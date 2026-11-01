@@ -6,6 +6,8 @@
 #   G  Giro     escala do giroscópio (heading_correction), girando o robô à mão
 #   R  Reta     anda 50 cm; você mede e corrige o diâmetro da roda
 #   B  Bitola   gira 3 voltas pelos encoders e compara com o giroscópio
+#   A  Anexo    mede, girando o braço à mão, quantos graus ele abre a partir do
+#               batente de trás (o ABRE_ANEXO das missões). Não grava nada.
 #
 # Os valores são gravados no hub (calibracao.py) e valem a partir do PRÓXIMO
 # início do programa. Durante a rotina: setas ◀ ▶ respondem, o central confirma.
@@ -217,6 +219,32 @@ def bitola():
     _ok(calibracao.salvar(tbr.hub, bitola=nova))
 
 
+def anexo():
+    """Mede quantos graus o anexo1 gira do batente de trás até onde deve abrir."""
+    print("=== Anexo ===")
+    print("1) Encoste o braco no batente de TRAS e aperte o central.")
+    tbr._anexo1.stop()                  # solto: mexe à mão
+    tbr.hub.display.char("A")
+    _esperar_central()
+    tbr._anexo1.reset_angle(0)
+    print("2) Leve o braco A MAO ate onde ele deve ficar aberto e aperte o central.")
+    print("   (a matriz mostra dezenas de graus com sinal: -22 = -220 graus)")
+    ultimo = None
+    while Button.CENTER not in tbr.hub.buttons.pressed():
+        a = tbr._anexo1.angle()
+        tbr.hub.display.number(max(-99, min(99, int(a / 10))))
+        if ultimo is None or abs(a - ultimo) >= 10:
+            print("   anexo1: %d graus" % a)
+            ultimo = a
+        wait(50)
+    _soltar_botoes()
+    a = tbr._anexo1.angle()
+    print("ABRE_ANEXO = %d   (copie para a missao COM O SINAL: negativo = para a frente)" % a)
+    tbr.hub.light.on(Color.GREEN)
+    tbr.hub.speaker.beep(900, 200)
+    wait(1500)
+
+
 # Entradas do menu: (letra, nome, função)
 ROTINAS = (
     ("P", "Portas", portas),
@@ -224,4 +252,5 @@ ROTINAS = (
     ("G", "Giro", giro),
     ("R", "Reta", reta),
     ("B", "Bitola", bitola),
+    ("A", "Anexo", anexo),
 )

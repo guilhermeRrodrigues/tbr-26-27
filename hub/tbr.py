@@ -200,12 +200,26 @@ def _giro_invertido(erro_inicial, normalizar):
     return False
 
 
-def _esperar_db(teto_ms, vigiar_giro=None):
+def _sem_progresso(vigia, t):
+    # vigia = [t_ref, d_ref]. True se o robô não andou PROGRESSO_MIN_MM em
+    # STALL_ABORTA_MS: encostado em algo que cede (blocos, peça), as rodas
+    # ainda giram um pouco e o db.stalled() não dispara.
+    d = db.distance()
+    if abs(d - vigia[1]) >= config.PROGRESSO_MIN_MM:
+        vigia[0] = t
+        vigia[1] = d
+        return False
+    return t - vigia[0] > config.STALL_ABORTA_MS
+
+
+def _esperar_db(teto_ms, vigiar_giro=None, progresso=False):
     # Espera o DriveBase concluir a manobra. Sai por: concluída (True), travada
-    # por STALL_ABORTA_MS, teto de tempo ou giro invertido (False).
+    # por STALL_ABORTA_MS, sem progresso, teto de tempo ou giro invertido (False).
     # vigiar_giro = (erro_inicial, normalizar) liga a vigia de giro invertido.
+    # progresso=True (retas e curvas) liga a vigia de "anda sem sair do lugar".
     cron = StopWatch()
     stall_desde = None
+    vigia = [0, db.distance()]
     while not db.done():
         _checar()
         if vigiar_giro is not None and _giro_invertido(vigiar_giro[0], vigiar_giro[1]):
@@ -224,6 +238,10 @@ def _esperar_db(teto_ms, vigiar_giro=None):
                 return False
         else:
             stall_desde = None
+        if progresso and _sem_progresso(vigia, t):
+            db.stop()
+            print("AVISO: robo sem progresso (encostado?), movimento abortado")
+            return False
         wait(config.PERIODO_MS)
     _atualizar_pose()
     return True
@@ -371,7 +389,7 @@ def andar(cm, vel=NORMAL, parar=True):
     _creep()                                     # sai alinhado ao rumo
     _aplicar_vel(vel)
     db.straight(cm * 10, then=Stop.HOLD if parar else Stop.NONE, wait=False)
-    ok = _esperar_db(_teto(abs(cm) * 10.0 / abs(vel) * 1000))
+    ok = _esperar_db(_teto(abs(cm) * 10.0 / abs(vel) * 1000), progresso=True)
     if parar:
         ok = _creep() and ok
         db.stop()
@@ -403,6 +421,7 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     cron = StopWatch()
     teto = _teto(alvo_mm / v_max * 1000)
     stall_desde = None
+    vigia = [0, d0]
     ok = True
     while True:
         _checar()
@@ -423,6 +442,10 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
                 break
         else:
             stall_desde = None
+        if _sem_progresso(vigia, t):
+            print("AVISO: robo sem progresso (encostado?), andar_no_rumo abortado")
+            ok = False
+            break
         v = v_max
         if parar:
             # Rampa de frenagem (v^2 = 2.a.d) para não passar do ponto.
@@ -585,7 +608,8 @@ def curva(raio_cm, graus, vel=NORMAL):
     _aplicar_vel(vel)
     db.curve(raio_cm * 10, graus, wait=False)
     comprimento = abs(raio_cm * 10 * graus * pi / 180.0)
-    ok = _esperar_db(_teto(comprimento / abs(vel) * 1000 + abs(graus) / config.VEL_GIRO * 1000))
+    ok = _esperar_db(_teto(comprimento / abs(vel) * 1000 + abs(graus) / config.VEL_GIRO * 1000),
+                     progresso=True)
     _rumo_alvo = _rumo_alvo + graus
     ok = _creep() and ok
     db.stop()
@@ -852,10 +876,12 @@ def odometro():
 _ALVO = 0           # run_angle / run_target: acaba quando o motor chega
 _TRAVAR = 1         # dc até parar: acaba quando o motor trava
 _MOTORES = (_anexo1, _anexo2)
+_RECOLHER_AVISO_GRAUS = 30   # recolher achou o batente mais longe que isto do 0: avisa
 
 
-def _lancar(i, modo, teto_ms):
-    _tarefa[i] = [modo, StopWatch(), teto_ms, None]   # [modo, cron, teto, desde]
+def _lancar(i, modo, teto_ms, zerar=False):
+    # [modo, cron, teto, desde, zerar]: zerar = ao travar, ali vira o ângulo 0
+    _tarefa[i] = [modo, StopWatch(), teto_ms, None, zerar]
     _resultado[i] = True
 
 
@@ -876,14 +902,14 @@ def _vigiar_anexos():
                 _encerrar(i, True)
             elif t > tarefa[2]:
                 m.stop()
-                print("AVISO: anexo%d estourou o teto de %d ms" % (i + 1, tarefa[2]))
+                print("AVISO: anexo%d estourou o teto de %d ms (em %d graus)" % (i + 1, tarefa[2], m.angle()))
                 _encerrar(i, False)
             elif m.stalled():
                 if tarefa[3] is None:
                     tarefa[3] = t
                 elif t - tarefa[3] > config.STALL_ABORTA_MS:
                     m.hold()
-                    print("AVISO: anexo%d travado, movimento encerrado" % (i + 1))
+                    print("AVISO: anexo%d travado em %d graus, movimento encerrado" % (i + 1, m.angle()))
                     _encerrar(i, False)
             else:
                 tarefa[3] = None
@@ -893,7 +919,7 @@ def _vigiar_anexos():
             # e prende o programa se nunca travar.
             if t > tarefa[2]:
                 m.hold()
-                print("AVISO: anexo%d nao travou em %d ms" % (i + 1, tarefa[2]))
+                print("AVISO: anexo%d nao travou em %d ms (em %d graus)" % (i + 1, tarefa[2], m.angle()))
                 _encerrar(i, False)
             elif t < 150:
                 pass                            # deixa o motor arrancar
@@ -901,6 +927,12 @@ def _vigiar_anexos():
                 if tarefa[3] is None:
                     tarefa[3] = t
                 elif t - tarefa[3] > 100:
+                    if tarefa[4]:
+                        a = m.angle()
+                        if abs(a) > _RECOLHER_AVISO_GRAUS:
+                            print("AVISO: anexo%d recolhido com o batente em %d graus "
+                                  "(dente pulou?), zero refeito" % (i + 1, a))
+                        m.reset_angle(0)
                     m.hold()
                     _encerrar(i, True)
             else:
@@ -928,9 +960,9 @@ def _anexo_para(i, angulo, vel, esperar):
     return _aguardar(i) if esperar else True
 
 
-def _anexo_travar(i, sentido, forca, teto_ms, esperar):
+def _anexo_travar(i, sentido, forca, teto_ms, esperar, zerar=False):
     _MOTORES[i].dc(sentido * _clamp(forca, 10, 100))
-    _lancar(i, _TRAVAR, teto_ms)
+    _lancar(i, _TRAVAR, teto_ms, zerar)
     return _aguardar(i) if esperar else True
 
 
@@ -988,6 +1020,20 @@ def anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
 def anexo2_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
     """Gira o anexo 2 até travar."""
     return _anexo_travar(1, sentido, forca, teto_ms, esperar)
+
+
+@_cronometrado("anexo1_recolher")
+def anexo1_recolher(sentido=HORARIO, forca=30, teto_ms=1500, esperar=True):
+    """Leva o anexo 1 até o batente (`sentido` = para onde fica o batente) e
+    faz dali o ângulo 0. Corrige o 0 depois de forçar o braço: engrenagem que
+    pula dente faz o motor girar sem o braço e o 0 antigo fica errado."""
+    return _anexo_travar(0, sentido, forca, teto_ms, esperar, True)
+
+
+@_cronometrado("anexo2_recolher")
+def anexo2_recolher(sentido=HORARIO, forca=30, teto_ms=1500, esperar=True):
+    """Leva o anexo 2 até o batente e faz dali o ângulo 0."""
+    return _anexo_travar(1, sentido, forca, teto_ms, esperar, True)
 
 
 def zerar_anexos():

@@ -98,6 +98,14 @@ def teste_anexo_aumentar_soma_de_onde_esta():
     assert (t.angulo_anexo1(), t.angulo_anexo2()) == (120, -45)
 
 
+def teste_recolher_refaz_o_zero():
+    t.anexo1(-400)
+    t.anexo2(70)
+    t.anexo1_recolher(esperar=False)
+    t.anexo2_recolher()
+    assert (t.angulo_anexo1(), t.angulo_anexo2()) == (0, 0)
+
+
 def teste_sacudir_volta_ao_ponto_e_gasta_o_tempo():
     t.andar(10)
     antes = t.tempo()

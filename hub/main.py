@@ -2,7 +2,7 @@
 # =========================
 # Um único programa no hub. Na matriz aparece o item escolhido:
 #   1, 2, 3...   saídas (saidas.py)
-#   P C G R B    rotinas de calibração (rotinas_cal.py)
+#   P C G R B A  rotinas de calibração e medida (rotinas_cal.py)
 #
 #   ◀ ▶       escolhem o item
 #   central    roda o item (e, durante uma saída, ABORTA e volta ao menu)

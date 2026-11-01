@@ -20,7 +20,7 @@ Robô SPIKE Prime com Pybricks. Herdou o método do Baymax (`~/dev/baymax`): gir
 | Caminho | Papel |
 |---|---|
 | `hub/tbr.py` | A linguagem (movimento, linhas, posição, anexos, hub) |
-| `hub/main.py` | Menu: saídas + rotinas P C G R B |
+| `hub/main.py` | Menu: saídas + rotinas P C G R B A |
 | `hub/rotinas_cal.py` / `hub/calibracao.py` | Calibração e storage (MAGIC 0xCB, versão 1) |
 | `hub/missoes.py` / `hub/saidas.py` | Código do usuário |
 | `ferramentas/cli.py` | `tbr verificar / gravar / rodar / simular` |

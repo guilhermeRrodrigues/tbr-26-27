@@ -68,3 +68,12 @@ def teste_sacudir():
     assert 0 < C["SACUDIR_CM"] <= 3 and 0 < C["SACUDIR_GRAUS"] <= 20
     assert C["SACUDIR_ACEL_RETA"] >= C["ACEL_RETA"]
     assert C["SACUDIR_ACEL_GIRO"] >= C["ACEL_GIRO"]
+
+
+def teste_vigia_de_progresso():
+    # Mesmo no LENTO o robô anda bem mais que isto em STALL_ABORTA_MS: só
+    # aborta quem realmente não sai do lugar.
+    andado_lento = C["VEL_LENTO"] * C["STALL_ABORTA_MS"] / 1000.0
+    assert 0 < C["PROGRESSO_MIN_MM"] < andado_lento / 2
+    # A rampa de frenagem do andar_no_rumo também não pode cair abaixo disto.
+    assert C["RUMO_VEL_FINAL"] * C["STALL_ABORTA_MS"] / 1000.0 > C["PROGRESSO_MIN_MM"]

@@ -11,7 +11,7 @@ Tudo vem de `from tbr import *` (arquivo `hub/tbr.py`). Unidades: **cm**, **grau
 
 ## Retorno
 
-Os movimentos devolvem `True` (terminou) ou `False` (travou ou estourou o tempo). Ninguém é obrigado a olhar o retorno, mas dá para reagir:
+Os movimentos devolvem `True` (terminou) ou `False` (travou ou estourou o tempo). Nas retas e curvas, "travou" também é **andar sem sair do lugar**: menos de `PROGRESSO_MIN_MM` (1 cm) em `STALL_ABORTA_MS` (0,7 s), como quando o robô empurra algo encostado que cede um pouco e as rodas não chegam a parar. Ninguém é obrigado a olhar o retorno, mas dá para reagir:
 
 ```python
 if not ate_linha(max_cm=40):
@@ -83,6 +83,7 @@ A posição é odometria (encoders + giroscópio): o erro cresce com a distânci
 | `anexo1_aumentar(graus, vel=500, esperar=True)` | Soma `graus` ao ângulo **medido agora** (negativo diminui). Use quando o anexo pode ter sido empurrado ou cedido com peso: o `anexo1()` parte do alvo anterior e acumula essa diferença. |
 | `anexo1_ir_para(angulo, vel=500, esperar=True)` | Vai ao ângulo absoluto (0 = início da saída). |
 | `anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True)` | Empurra com `forca`% até travar (garra fechando, fim de curso) e segura. |
+| `anexo1_recolher(sentido=HORARIO, forca=30, teto_ms=1500, esperar=True)` | Leva o anexo até o batente (`sentido` = lado do batente) e faz dali o ângulo 0. Use depois de forçar o braço: engrenagem que pula dente faz o motor girar sem o braço, e o 0 antigo fica errado. Se o batente aparecer a mais de 30° do 0, o log avisa. |
 | `esperar_anexos(teto_ms=5000)` | Espera os anexos lançados com `esperar=False`. |
 | `zerar_anexos()` · `angulo_anexo1()` | O menu zera os anexos no início de cada saída. |
 
