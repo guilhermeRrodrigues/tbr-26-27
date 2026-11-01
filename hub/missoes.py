@@ -24,9 +24,11 @@ def m1_gangorra():
     anexo1(-200)                  # VEL_ANEXO padrão (RAPIDO aqui seria 450°/s, mais lento)
     esperar(300)
     anexo1_ir_para(0, esperar=False)  # o braço volta durante a ré
-    andar(-23)
-    virar_para(0, RAPIDO)
-    andar(-25)
+    # Volta: ré curta e reta para o braço sair da gangorra antes de girar, depois
+    # ré em diagonal direto à origem. A diagonal fica por dentro do L da ida
+    # (0,0)→(20,0)→(20,-20). Era andar(-23); virar_para(0); andar(-25).
+    andar(-8)
+    voltar_base(RAPIDO, de_re=True)
 
 
 def m2_blocos():
@@ -43,16 +45,16 @@ def m2_blocos():
     andar(8.5)
     virar_para(-23)
     andar(32, RAPIDO)                               # chega na peça
-    anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)   # prende sem esmagar
+    anexo1_ate_travar(ANTI_HORARIO, forca=60, teto_ms=1500)   # prende sem esmagar
     andar(-31)                                      # y≈1,2
     virar_para(0, RAPIDO)
     andar_no_rumo(73, 0, RAPIDO)                               # x≈80: ainda longe do L
     anexo1_ir_para(0)                               # solta com o braço livre
     andar(24, LENTO)                                # encosta e leva a peça ~10 cm
-    # Gira o braço e posiciona a caixa. Precisa de força 40: com 30 ele trava
+    # Gira o braço e posiciona a caixa. Força 60 (era 40/50): com 30 ele trava
     # logo e não gira. Se a engrenagem pular dente aqui, o recolher logo abaixo
     # refaz o 0.
-    anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
+    anexo1_ate_travar(ANTI_HORARIO, forca=60, teto_ms=1500)
     anexo1_aumentar(15.67)
     andar(-4)                                       # já no rumo 0: andar() alinha sozinho
     virar_ate_travar(-35)                           # para ao encostar
@@ -77,7 +79,7 @@ def m2_blocos():
     #FIM MISSÃO NAO SEI O NUMERO - RUMO AO PROXIMO ALVO!
     ir_para(179.3, -14.6)                           # mesma parada de antes na alavanca, pelo norte
     virar_para(0)
-    anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500, esperar=False)
+    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500, esperar=False)
     sacudir(1000)
     virar_ate_travar(90)
     # Braço para o 0 por posição (força total), não pelo recolher: encostado na
@@ -103,7 +105,7 @@ def m3_rampa():
     Rampa TOCANDO as 3 áreas iniciais dos blocos de alvenaria.
     """
     andar_no_rumo(21, 0)
-    anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
+    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
     andar_no_rumo(-40, 0)
     andar(20)
     virar_para(90, LENTO)
@@ -117,7 +119,7 @@ def m4_epis():
     EPI TOCANDO o suporte da mesma cor no pórtico: verde 37, azul 33,
     vermelho 30. Os EPIs ficam com a equipe na base e saem levados pelo robô.
     """
-    anexo1_ate_travar(ANTI_HORARIO, forca=40, teto_ms=1500)
+    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
     anexo1_aumentar(35, esperar=False)  # o braço sobe enquanto sai
     andar_no_rumo(70, 0, RAPIDO)
     virar_para(25, RAPIDO)
