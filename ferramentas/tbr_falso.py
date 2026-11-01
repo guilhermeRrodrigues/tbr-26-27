@@ -20,6 +20,7 @@ NORMAL = _C["VEL_NORMAL"]
 RAPIDO = _C["VEL_RAPIDO"]
 PRETO = "preto"
 BRANCO = "branco"
+VERDE = "verde"
 DIR = "dir"
 ESQ = "esq"
 QUALQUER = "qualquer"
@@ -61,6 +62,7 @@ _t = 0.0
 _x = 0.0
 _y = 0.0
 _rumo = 0.0
+_odo = 0.0
 _anexos = [0.0, 0.0]
 _partida = None
 passos = []          # [(t, x, y, rumo, descricao)]
@@ -68,9 +70,9 @@ passos = []          # [(t, x, y, rumo, descricao)]
 
 def reiniciar():
     """Zera tudo (o simulador chama antes de cada saída)."""
-    global _t, _x, _y, _rumo, _anexos, passos
+    global _t, _x, _y, _rumo, _odo, _anexos, passos
     _t = 0.0
-    _x = _y = _rumo = 0.0
+    _x = _y = _rumo = _odo = 0.0
     _anexos = [0.0, 0.0]
     passos = []
 
@@ -90,12 +92,19 @@ def _t_reta(cm, vel):
     return abs(cm) * 10.0 / vel + vel / _C["ACEL_RETA"] + _ASSENTA_S
 
 
-def _t_giro(graus):
-    return abs(graus) / _C["VEL_GIRO"] + _C["VEL_GIRO"] / _C["ACEL_GIRO"] + 2 * _ASSENTA_S
+def _taxa_giro(vel):
+    return {LENTO: _C["GIRO_LENTO"], NORMAL: _C["VEL_GIRO"],
+            RAPIDO: _C["GIRO_RAPIDO"]}.get(vel, abs(vel))
+
+
+def _t_giro(graus, vel=NORMAL):
+    taxa = _taxa_giro(vel)
+    return abs(graus) / taxa + taxa / _C["ACEL_GIRO"] + 2 * _ASSENTA_S
 
 
 def _avancar(cm):
-    global _x, _y
+    global _x, _y, _odo
+    _odo += cm
     h = math.radians(_rumo)
     _x += cm * math.cos(h)
     _y -= cm * math.sin(h)
@@ -116,18 +125,46 @@ def andar(cm, vel=NORMAL, parar=True):
     return True
 
 
-def girar(graus):
+def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
+    # Muito torto: vira no lugar antes. Pouco torto: corrige andando (aqui
+    # aproximado como se já saísse no rumo certo).
     global _rumo
-    _rumo += graus
-    _passo("girar(%g)" % graus, _t_giro(graus))
+    delta = _normalizar(rumo - _rumo)
+    t_giro = _t_giro(delta) if abs(delta) > _C["RUMO_VIRAR_ANTES"] else 0.0
+    _rumo += delta
+    _avancar(cm)
+    _passo("andar_no_rumo(%g, %g)" % (cm, rumo),
+           t_giro + _t_reta(cm, vel) - (0 if parar else _ASSENTA_S))
     return True
 
 
-def virar_para(rumo):
+def girar(graus, vel=NORMAL):
+    global _rumo
+    _rumo += graus
+    _passo("girar(%g)" % graus, _t_giro(graus, vel))
+    return True
+
+
+def virar_para(rumo, vel=NORMAL):
     global _rumo
     delta = _normalizar(rumo - _rumo)
     _rumo += delta
-    _passo("virar_para(%g)" % rumo, _t_giro(delta) if abs(delta) > 0.5 else 0.0)
+    _passo("virar_para(%g)" % rumo, _t_giro(delta, vel) if abs(delta) > 0.5 else 0.0)
+    return True
+
+
+def virar_ate_travar(rumo, vel=LENTO, ms=250):
+    # No simulador nada trava: gira até o rumo, como virar_para.
+    global _rumo
+    delta = _normalizar(rumo - _rumo)
+    _rumo += delta
+    _passo("virar_ate_travar(%g)" % rumo, _t_giro(delta, vel) if abs(delta) > 0.5 else 0.0)
+    return False
+
+
+def sacudir(ms, cm=_C["SACUDIR_CM"], graus=_C["SACUDIR_GRAUS"]):
+    # Termina onde começou: só gasta o tempo (+ a volta ao centro).
+    _passo("sacudir(%d)" % ms, ms / 1000.0 + 2 * _ASSENTA_S)
     return True
 
 
@@ -158,7 +195,7 @@ def ir_para(x, y, vel=NORMAL, de_re=False):
     if de_re:
         rumo += 180.0
         dist = -dist
-    virar_para(rumo)
+    virar_para(rumo, vel)
     andar(dist, vel)
     passos[-1] = passos[-1][:4] + ("ir_para(%g, %g)" % (x, y),)
     return True
@@ -241,6 +278,10 @@ def rumo():
     return _rumo
 
 
+def odometro():
+    return _odo
+
+
 # --- Anexos ----------------------------------------------------------------------
 def _anexo(i, graus, vel, esperar):
     _anexos[i] += graus
@@ -264,13 +305,22 @@ def anexo2_ir_para(angulo, vel=_C["VEL_ANEXO"], esperar=True):
     return _anexo(1, angulo - _anexos[1], vel, esperar)
 
 
-def anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000):
-    _passo("anexo1_ate_travar(%d)" % sentido, 0.6)
+def anexo1_aumentar(graus, vel=_C["VEL_ANEXO"], esperar=True):
+    # No simulador o anexo está sempre onde foi mandado: igual ao anexo1().
+    return _anexo(0, graus, vel, esperar)
+
+
+def anexo2_aumentar(graus, vel=_C["VEL_ANEXO"], esperar=True):
+    return _anexo(1, graus, vel, esperar)
+
+
+def anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
+    _passo("anexo1_ate_travar(%d)" % sentido, 0.6 if esperar else 0.0)
     return True
 
 
-def anexo2_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000):
-    _passo("anexo2_ate_travar(%d)" % sentido, 0.6)
+def anexo2_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True):
+    _passo("anexo2_ate_travar(%d)" % sentido, 0.6 if esperar else 0.0)
     return True
 
 

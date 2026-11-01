@@ -59,6 +59,21 @@ def verificar(silencioso=False):
             print("ERRO %s:%d: %s" % (caminho.name, linha, msg))
     if not ok:
         return False
+    # Nome errado (ex.: `espera` em vez de `esperar`) compila, mas quebra o
+    # programa no meio da saída. Rodar as saídas no simulador pega isso no PC.
+    import contextlib
+    import io
+
+    from ferramentas import simular
+    for i, (nome, funcao) in enumerate(simular.carregar_saidas(), 1):
+        with contextlib.redirect_stdout(io.StringIO()):     # cala os print() das missões
+            _, _, erro = simular.simular_saida(nome, funcao)
+        if erro:
+            ok = False
+            print("ERRO na saída %d (%s): %s" % (i, nome, erro))
+    if not ok:
+        print("Dica: `tbr simular N` mostra os passos até o erro.")
+        return False
     blob = asyncio.run(compile_multi_file(str(PROGRAMA), (6, 1)))
     if not silencioso:
         print("OK: hub/ compila; programa empacotado com %d bytes." % len(blob))

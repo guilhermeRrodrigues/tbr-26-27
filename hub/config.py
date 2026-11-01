@@ -9,8 +9,11 @@
 from pybricks.parameters import Port, Direction
 
 # --- Portas (informadas pela equipe) -----------------------------------------
-PORTA_RODA_DIR = Port.D
-PORTA_RODA_ESQ = Port.C
+# D e C TROCADAS em relação ao informado: com D como direita, o robô girava ao
+# contrário do giroscópio (virar_para(90) terminou em -216 graus, travado). A
+# rotina "P" confere isso sozinha e acusa "X" se ainda estiver invertido.
+PORTA_RODA_DIR = Port.C
+PORTA_RODA_ESQ = Port.D
 PORTA_ANEXO1 = Port.F
 PORTA_ANEXO2 = Port.B
 PORTA_COR_DIR = Port.A
@@ -18,11 +21,11 @@ PORTA_COR_ESQ = Port.E
 
 # Os motores de tração são montados ESPELHADOS (CoopBot.pdf p.17): um dos dois
 # é invertido para os dois empurrarem o robô para a frente com o mesmo sinal.
-# Conferido na rotina "P" em 2026-10-28: com DIR=CLOCKWISE/ESQ=COUNTERCLOCKWISE o
-# robô andava PARA TRÁS, então é o direito que fica invertido.
+# Os sentidos acompanham o MOTOR, não o lado: a porta D é COUNTERCLOCKWISE e a C
+# é CLOCKWISE (conferido em 2026-10-28: assim o robô anda para a frente).
 # Se o robô girar no lugar quando devia andar reto, só um dos dois está errado.
-SENTIDO_RODA_DIR = Direction.COUNTERCLOCKWISE
-SENTIDO_RODA_ESQ = Direction.CLOCKWISE
+SENTIDO_RODA_DIR = Direction.CLOCKWISE           # porta C
+SENTIDO_RODA_ESQ = Direction.COUNTERCLOCKWISE    # porta D
 SENTIDO_ANEXO1 = Direction.CLOCKWISE
 SENTIDO_ANEXO2 = Direction.CLOCKWISE
 
@@ -47,7 +50,13 @@ VEL_LENTO = 150
 VEL_NORMAL = 300
 VEL_RAPIDO = 450
 ACEL_RETA = 600         # mm/s^2
-VEL_GIRO = 180          # graus/s no giro grosso
+VEL_GIRO = 180          # graus/s no giro grosso (padrão = NORMAL)
+# girar(90, LENTO) / virar_para(-180, RAPIDO): as constantes de velocidade da
+# reta valem também no giro, traduzidas para estes graus/s. Um número que não
+# seja uma das três constantes é usado direto como graus/s.
+GIRO_LENTO = 90
+GIRO_NORMAL = VEL_GIRO
+GIRO_RAPIDO = 300
 ACEL_GIRO = 720         # graus/s^2
 
 # Velocidade dos anexos (graus/s de motor)
@@ -62,6 +71,21 @@ GIRO_TOL_SAI = 0.8      # graus: e para abaixo disto
 CREEP_GANHO = 3.0       # graus/s de guinada por grau de erro
 CREEP_TAXA_MIN = 15     # graus/s: abaixo disto o robô não sai do lugar
 CREEP_TAXA_MAX = 60     # graus/s
+
+# --- andar_no_rumo: reta corrigindo para um rumo absoluto --------------------
+# Enquanto anda, a guinada é CREEP_GANHO x erro (saturada em CREEP_TAXA_MAX).
+# Se o robô começar mais torto que RUMO_VIRAR_ANTES, vira no lugar antes de
+# sair (corrigir só andando desviaria muito para o lado).
+RUMO_VIRAR_ANTES = 20.0 # graus
+RUMO_VEL_FINAL = 40     # mm/s: velocidade mínima da rampa de frenagem
+
+# --- sacudir: vai e vem curtinho para assentar/soltar/encaixar ---------------
+# Amplitudes padrão (a missão pode passar outras). Acelerações mais altas que
+# as da reta e do giro: com as normais, um vai e vem de 1 cm mal sai do lugar.
+SACUDIR_CM = 1.0        # cm para a frente e para trás
+SACUDIR_GRAUS = 6.0     # graus para cada lado
+SACUDIR_ACEL_RETA = 1500    # mm/s^2
+SACUDIR_ACEL_GIRO = 1500    # graus/s^2
 
 # --- Seguidor de linha (controle PD sobre a refletância normalizada) --------
 # Erro = refletância normalizada (0 preto .. 100 branco) - 50 (meio da borda).

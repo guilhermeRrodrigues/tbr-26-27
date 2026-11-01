@@ -16,8 +16,9 @@ def teste_portas_nao_se_repetem():
 
 
 def teste_mapa_de_portas_do_coopbot():
-    assert C["PORTA_RODA_DIR"] == "Port.D"
-    assert C["PORTA_RODA_ESQ"] == "Port.C"
+    # D/C trocadas em relação ao informado: conferido pelo sentido do giro.
+    assert C["PORTA_RODA_DIR"] == "Port.C"
+    assert C["PORTA_RODA_ESQ"] == "Port.D"
     assert C["PORTA_ANEXO1"] == "Port.F"
     assert C["PORTA_ANEXO2"] == "Port.B"
     assert C["PORTA_COR_DIR"] == "Port.A"
@@ -55,3 +56,15 @@ def teste_formato_de_calibracao_casa_com_os_campos():
     # magic + versao + um campo por nome em CAMPOS
     campos = struct.unpack(cal["FORMATO"], bytes(struct.calcsize(cal["FORMATO"])))
     assert len(campos) == 2 + len(cal["CAMPOS"])
+
+
+def teste_andar_no_rumo():
+    # Abaixo do grosso do giro não faz sentido virar no lugar antes de sair.
+    assert C["GIRO_GROSSO_MIN"] <= C["RUMO_VIRAR_ANTES"] < 90
+    assert 0 < C["RUMO_VEL_FINAL"] < C["VEL_LENTO"]
+
+
+def teste_sacudir():
+    assert 0 < C["SACUDIR_CM"] <= 3 and 0 < C["SACUDIR_GRAUS"] <= 20
+    assert C["SACUDIR_ACEL_RETA"] >= C["ACEL_RETA"]
+    assert C["SACUDIR_ACEL_GIRO"] >= C["ACEL_GIRO"]

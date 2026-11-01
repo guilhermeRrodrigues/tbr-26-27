@@ -26,20 +26,31 @@ O **botão central durante uma saída** aborta tudo e volta ao menu.
 | Comando | O que faz |
 |---|---|
 | `andar(cm, vel=NORMAL, parar=True)` | Reta segurando o rumo pelo giroscópio. Valor negativo anda de ré. `parar=False` emenda no próximo movimento sem frear. |
-| `girar(graus)` | Giro no lugar, relativo ao rumo desejado. |
-| `virar_para(rumo)` | Gira até o rumo absoluto pelo caminho mais curto. |
+| `andar_no_rumo(cm, rumo, vel=NORMAL, parar=True)` | Reta no rumo **absoluto** `rumo`, corrigindo a direção o tempo todo: se sair do rumo no caminho, guina de volta andando. Se começar mais de 20° torto (`RUMO_VIRAR_ANTES`), vira no lugar antes. Negativo anda de ré, com a frente no `rumo`. |
+| `girar(graus, vel=NORMAL)` | Giro no lugar, relativo ao rumo desejado. |
+| `virar_para(rumo, vel=NORMAL)` | Gira até o rumo absoluto pelo caminho mais curto. |
+| `virar_ate_travar(rumo, vel=LENTO, ms=250)` | Como `virar_para`, mas para se o giro travar (o rumo não muda 1° em `ms` ms). O rumo onde parou vira o rumo desejado. Devolve `True` se travou. |
+| `sacudir(ms, cm=1, graus=6)` | Sacode por `ms` milissegundos: vai e volta `cm` para a frente e para trás e vira `graus` para cada lado, em torno do ponto e do rumo onde começou, e no fim volta para eles. Para assentar uma peça, soltar um anexo enroscado ou encaixar algo. `cm=0` só vira; `graus=0` só vai e volta. |
 | `curva(raio_cm, graus, vel=NORMAL)` | Arco; o rumo muda `graus`. |
 | `ir_para(x, y, vel=NORMAL, de_re=False)` | Vira e anda até o ponto, usando a posição estimada. |
 | `voltar_base(vel=RAPIDO, de_re=False)` | `ir_para(0, 0)`. |
 | `parar_tudo()` | Para a tração e os anexos. |
 
-Velocidades (mm/s, ajustáveis no `config.py`): `LENTO` 150, `NORMAL` 300, `RAPIDO` 450.
+Velocidades (ajustáveis no `config.py`):
+
+| | reta (mm/s) | giro (graus/s) |
+|---|---|---|
+| `LENTO` | 150 | 90 |
+| `NORMAL` | 300 | 180 |
+| `RAPIDO` | 450 | 300 |
+
+No giro, também vale um número em graus/s: `virar_para(-180, 60)`. Giro mais lento é mais preciso, principalmente carregando objetos.
 
 ## Linhas: o realinhamento numa mesa sem bordas
 
 | Comando | O que faz |
 |---|---|
-| `ate_linha(cor_alvo=PRETO, sensor=QUALQUER, vel=LENTO, max_cm=50)` | Anda até `DIR`, `ESQ` ou `QUALQUER` sensor ver `PRETO`/`BRANCO`. Com `vel` negativa, procura de ré. |
+| `ate_linha(cor_alvo=PRETO, sensor=QUALQUER, vel=LENTO, max_cm=50)` | Anda até `DIR`, `ESQ` ou `QUALQUER` sensor ver `PRETO`/`BRANCO`/`VERDE`. Com `vel` negativa, procura de ré. Devolve `True` se achou. |
 | `alinhar_na_linha(vel=LENTO, max_cm=30, rumo=None, fino=True)` | Cada roda para quando o seu sensor vê o preto, e o robô fica perpendicular à linha. Com `rumo=...`, **reescreve o giroscópio** com o rumo conhecido da linha, o que zera o erro acumulado. |
 | `seguir_linha(cm, sensor=DIR, borda=ESQ, vel=200, kp=None, kd=None)` | Segue a borda da linha por `cm` (controle PD). |
 | `seguir_linha_ate_cruzamento(sensor=DIR, borda=ESQ, vel=200, max_cm=150, ...)` | Segue com um sensor até o **outro** ver preto (cruzamento ou barra no fim da linha). |
@@ -58,6 +69,7 @@ Velocidades (mm/s, ajustáveis no `config.py`): `LENTO` 150, `NORMAL` 300, `RAPI
 |---|---|
 | `posicao()` | `(x, y, rumo)` estimados. |
 | `rumo()` | Rumo medido pelo giroscópio. |
+| `odometro()` | Centímetros que as rodas já andaram (ré desconta). A diferença entre duas leituras diz quanto um movimento andou. |
 | `definir_posicao(x, y)` | Corrige a estimativa (ex.: depois de alinhar numa linha de posição conhecida). |
 | `zerar_posicao()` / `zerar_rumo()` | Volta a posição para (0, 0) / zera o rumo e a posição. |
 
@@ -68,12 +80,27 @@ A posição é odometria (encoders + giroscópio): o erro cresce com a distânci
 | Comando | O que faz |
 |---|---|
 | `anexo1(graus, vel=500, esperar=True)` | Gira relativo. `esperar=False` devolve na hora, e o anexo se mexe enquanto o robô anda. |
+| `anexo1_aumentar(graus, vel=500, esperar=True)` | Soma `graus` ao ângulo **medido agora** (negativo diminui). Use quando o anexo pode ter sido empurrado ou cedido com peso: o `anexo1()` parte do alvo anterior e acumula essa diferença. |
 | `anexo1_ir_para(angulo, vel=500, esperar=True)` | Vai ao ângulo absoluto (0 = início da saída). |
-| `anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000)` | Empurra com `forca`% até travar (garra fechando, fim de curso) e segura. |
+| `anexo1_ate_travar(sentido=HORARIO, forca=50, teto_ms=3000, esperar=True)` | Empurra com `forca`% até travar (garra fechando, fim de curso) e segura. |
 | `esperar_anexos(teto_ms=5000)` | Espera os anexos lançados com `esperar=False`. |
 | `zerar_anexos()` · `angulo_anexo1()` | O menu zera os anexos no início de cada saída. |
 
 Todos existem também como `anexo2...`. `sentido` é `HORARIO` ou `ANTI_HORARIO`.
+
+### Anexo enquanto o robô se mexe
+
+Todo comando de anexo aceita `esperar=False`: devolve na hora e o anexo se mexe **junto** com o próximo comando (andar, girar, curva, seguir linha, sacudir, esperar...). Ele continua vigiado: se travar ou estourar o tempo, para e segura sozinho, sem parar o robô.
+
+```python
+anexo1(-90, esperar=False)            # baixa o braço...
+andar(30)                             # ...enquanto anda
+anexo2_ate_travar(HORARIO, esperar=False)
+sacudir(1500)                         # fecha a garra sacudindo
+esperar_anexos()                      # garante que os dois terminaram
+```
+
+Os dois anexos podem estar em movimento ao mesmo tempo. Um novo comando no mesmo anexo substitui o anterior.
 
 ## Hub
 

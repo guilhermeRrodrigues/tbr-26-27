@@ -81,6 +81,32 @@ def portas():
         wait(400)
     tbr.hub.display.char("^")
     tbr.andar(10, tbr.LENTO)
+
+    # Giro de 90 graus SÓ pelos encoders: o giroscópio tem de ver +90 (horário).
+    # Se vir -90, a direita e a esquerda das rodas estão trocadas no config.
+    tbr.db.use_gyro(False)
+    try:
+        inicio = tbr.hub.imu.heading()
+        tbr._aplicar_vel(tbr.LENTO)
+        tbr.db.turn(90)
+        wait(300)
+        visto = tbr.hub.imu.heading() - inicio
+    finally:
+        tbr.db.stop()
+        tbr.db.use_gyro(True)
+    if visto > 45:
+        print("Giro OK: comandado +90, giroscopio viu %+.0f" % visto)
+        tbr.hub.display.char("V")
+        tbr.hub.speaker.beep(900, 150)
+    else:
+        print("GIRO INVERTIDO: comandado +90, giroscopio viu %+.0f." % visto)
+        print("Troque PORTA_RODA_DIR <-> PORTA_RODA_ESQ e SENTIDO_RODA_DIR <->")
+        print("SENTIDO_RODA_ESQ em config.py.")
+        tbr.hub.display.char("X")
+        tbr.hub.light.on(Color.RED)
+        tbr.hub.speaker.beep(200, 600)
+    wait(1500)
+
     print("Sensores: ◀ = esquerdo (%s), ▶ = direito (%s), central = sair"
           % (tbr._letra(config.PORTA_COR_ESQ), tbr._letra(config.PORTA_COR_DIR)))
     _soltar_botoes()
