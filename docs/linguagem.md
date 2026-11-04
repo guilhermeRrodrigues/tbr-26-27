@@ -4,7 +4,7 @@ Tudo vem de `from tbr import *` (arquivo `hub/tbr.py`). Unidades: **cm**, **grau
 
 ## Referencial
 
-- **Origem:** centro do eixo das rodas na posição de partida da saída. O menu zera a posição e o rumo ao iniciar cada saída.
+- **Origem:** centro do eixo das rodas na posição de partida da saída. O menu zera a posição ao iniciar cada saída. O rumo também é zerado, mas com `LARGADA_COMPENSADA` ele começa no quanto o robô foi solto torto, e o 1º movimento corrige (ver *Largada* e `docs/giroscopio.md`).
 - **Rumo 0:** para onde o robô apontava ao sair, ou seja, leste, saindo da base. **Positivo = horário (direita)**: 90 = sul, -90 = norte, 180 = oeste.
 - **x:** cresce para a frente (leste); **y** cresce para a esquerda (norte).
 - **O rumo é absoluto.** `girar(90); girar(90)` deixa o robô exatamente em 180, porque o erro de um giro não passa para o próximo.
@@ -25,10 +25,10 @@ O **botão central durante uma saída** aborta tudo e volta ao menu.
 
 | Comando | O que faz |
 |---|---|
-| `andar(cm, vel=NORMAL, parar=True)` | Reta segurando o rumo pelo giroscópio. Valor negativo anda de ré. `parar=False` emenda no próximo movimento sem frear. |
-| `andar_no_rumo(cm, rumo, vel=NORMAL, parar=True)` | Reta no rumo **absoluto** `rumo`, corrigindo a direção o tempo todo: se sair do rumo no caminho, guina de volta andando. Se começar mais de 20° torto (`RUMO_VIRAR_ANTES`), vira no lugar antes. Negativo anda de ré, com a frente no `rumo`. |
+| `andar(cm, vel=NORMAL, parar=True)` | Reta no rumo **desejado** (o do último giro), pelo giroscópio. Com `ANDAR_NO_RUMO` é um `andar_no_rumo(cm, rumo desejado)`. Valor negativo anda de ré. `parar=False` emenda no próximo movimento sem frear. |
+| `andar_no_rumo(cm, rumo, vel=NORMAL, parar=True)` | Reta no rumo **absoluto** `rumo`, corrigindo a direção o tempo todo: se sair do rumo no caminho, guina de volta andando. Se começar mais de 8° torto (`RUMO_VIRAR_ANTES`), vira no lugar antes. Negativo anda de ré, com a frente no `rumo`. |
 | `girar(graus, vel=NORMAL)` | Giro no lugar, relativo ao rumo desejado. |
-| `virar_para(rumo, vel=NORMAL)` | Gira até o rumo absoluto pelo caminho mais curto. |
+| `virar_para(rumo, vel=NORMAL)` | Gira até o rumo absoluto pelo caminho mais curto. Num giro de exatamente 180° o sentido depende do ruído: se importar, peça 179 ou -179. |
 | `andar_ate_travar(max_cm, vel=LENTO, ms=250)` | Anda no rumo atual até encostar em algo (as rodas não avançam 3 mm em `ms` ms), no máximo `max_cm` (negativo = de ré). Corrige a direção andando. Devolve `True` se travou, `False` se chegou ao limite sem encostar; o log mostra `encostou em X cm` ou `AVISO: ... chegou a X cm sem encostar`. Roda que patina conta como avanço: encoste devagar. |
 | `virar_ate_travar(rumo, vel=LENTO, ms=250)` | Como `virar_para`, mas para se o giro travar (o rumo não muda 1° em `ms` ms). O rumo onde parou vira o rumo desejado. Devolve `True` se travou. |
 | `sacudir(ms, cm=1, graus=6)` | Sacode por `ms` milissegundos: vai e volta `cm` para a frente e para trás e vira `graus` para cada lado, em torno do ponto e do rumo onde começou, e no fim volta para eles. Para assentar uma peça, soltar um anexo enroscado ou encaixar algo. `cm=0` só vira; `graus=0` só vai e volta. |
@@ -51,8 +51,9 @@ No giro, também vale um número em graus/s: `virar_para(-180, 60)`. Giro mais l
 
 | Comando | O que faz |
 |---|---|
-| `ate_linha(cor_alvo=PRETO, sensor=QUALQUER, vel=LENTO, max_cm=50)` | Anda até `DIR`, `ESQ` ou `QUALQUER` sensor ver `PRETO`/`BRANCO`/`VERDE`. Com `vel` negativa, procura de ré. Devolve `True` se achou. |
+| `ate_linha(cor_alvo=PRETO, sensor=QUALQUER, vel=LENTO, max_cm=50)` | Anda até `DIR`, `ESQ` ou `QUALQUER` sensor ver `PRETO`/`BRANCO`/`VERDE`/`BORDA` (a moldura verde-escura da base). Com `vel` negativa, procura de ré. Devolve `True` se achou. |
 | `alinhar_na_linha(vel=LENTO, max_cm=30, rumo=None, fino=True)` | Cada roda para quando o seu sensor vê o preto, e o robô fica perpendicular à linha. Com `rumo=...`, **reescreve o giroscópio** com o rumo conhecido da linha, o que zera o erro acumulado. |
+| `alinhar_na_base(rumo=0, vel=LENTO, max_cm=30, fino=True)` | Como `alinhar_na_linha`, mas na **moldura verde-escura da base** (cor `BORDA`, limiar `LIMIAR_BORDA`): sai da base, esquadreja na borda e reescreve o rumo e a referência da mesa. Para as saídas críticas: tira o erro da mão (~0,3°) por ~2 s. |
 | `seguir_linha(cm, sensor=DIR, borda=ESQ, vel=200, kp=None, kd=None)` | Segue a borda da linha por `cm` (controle PD). |
 | `seguir_linha_ate_cruzamento(sensor=DIR, borda=ESQ, vel=200, max_cm=150, ...)` | Segue com um sensor até o **outro** ver preto (cruzamento ou barra no fim da linha). |
 | `reflexao(sensor)` | 0 (preto) a 100 (branco), normalizada pela calibração. |
@@ -72,9 +73,22 @@ No giro, também vale um número em graus/s: `virar_para(-180, 60)`. Giro mais l
 | `rumo()` | Rumo medido pelo giroscópio. |
 | `odometro()` | Centímetros que as rodas já andaram (ré desconta). A diferença entre duas leituras diz quanto um movimento andou. |
 | `definir_posicao(x, y)` | Corrige a estimativa (ex.: depois de alinhar numa linha de posição conhecida). |
-| `zerar_posicao()` / `zerar_rumo()` | Volta a posição para (0, 0) / zera o rumo e a posição. |
+| `zerar_posicao()` / `zerar_rumo()` | Volta a posição para (0, 0) / zera o rumo e a posição (o rumo da mesa continua valendo). |
 
 A posição é odometria (encoders + giroscópio): o erro cresce com a distância. Realinhe nas linhas sempre que der.
+
+### Largada e rumo da mesa
+
+O giroscópio lembra para onde o robô aponta **na mesa** entre uma saída e outra. A 1ª largada da partida (ou a rotina Z do menu) fixa essa referência, de preferência com o gabarito.
+
+| Comando | O que faz |
+|---|---|
+| `largar(nominal=None)` | O menu chama ao apertar: zera a posição, e o rumo começa no desvio em relação à direção `nominal` da saída (padrão: o múltiplo de 90° mais perto), fundindo o que a mão garante (`LARGADA_SIGMA_MAO`) com o que o giroscópio viu. Acima de `LARGADA_MAX_DESVIO` (8°) não compensa. |
+| `rumo_mesa()` | Rumo na mesa (0 = direção da referência), ou `None` sem referência. |
+| `desvio_largada(nominal=None)` | `(desvio, nominal)` que o `largar()` usaria agora, ou `None`. É o que a luz de mira mostra. |
+| `definir_mesa(nominal=0)` | O robô, parado, aponta exatamente para `nominal` na mesa: vira a referência. |
+
+No menu, numa saída, a luz é a **mira**: verde = desvio ≤ 0,5° e giroscópio parado; amarela = até 2°; vermelha = mais. Uma saída em diagonal declara a direção com um 3º item: `("M9", m9_patio, 45)`.
 
 ## Anexos (anexo1 = porta F, anexo2 = porta B)
 
