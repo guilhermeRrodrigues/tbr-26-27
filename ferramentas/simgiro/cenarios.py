@@ -41,7 +41,7 @@ def giro(semente, config=None, n=6):
     m.avancar(1500)                         # parado na base: bias se assenta
     t.zerar_rumo()
     th0 = m.theta
-    erros, tempos, falhas = [], [], 0
+    erros, medidos, tempos, falhas = [], [], [], 0
     alvo = 0.0
     for _ in range(n):
         delta = rng.choice((1, -1)) * rng.choice((5, 10, 20, 30, 45, 60, 90, 90, 135, 180))
@@ -52,7 +52,8 @@ def giro(semente, config=None, n=6):
         falhas += 0 if ok else 1
         m.avancar(300)                      # assenta (coast) antes de medir
         erros.append(_norm(m.theta - th0 - alvo))
-    return {"erro": erros, "tempo": tempos, "falhas": falhas}
+        medidos.append(_norm(t.rumo() - alvo))
+    return {"erro": erros, "medido": medidos, "tempo": tempos, "falhas": falhas}
 
 
 def reta(semente, config=None, n=4):
@@ -118,6 +119,8 @@ def largada(semente, config=None, saidas=4, gabarito=False, ancorar=False):
     # Referência da mesa: a direção "leste" verdadeira é 0. A 1ª largada é
     # feita com cuidado (gabarito/minuto de preparação).
     nominais = [0.0] + [rng.choice((0.0, 0.0, 90.0, -90.0)) for _ in range(saidas - 1)]
+    if ancorar:
+        nominais = [0.0] * saidas       # a faixa do modelo é perpendicular a x
     m.theta = rng.gauss(0.0, SIGMA_GABARITO if gabarito else SIGMA_OLHO)
     m.avancar(2000)
     erros_rumo, erros_lat = [], []

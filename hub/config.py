@@ -134,6 +134,11 @@ FINO_TENTATIVAS = 4         # pulsos de correção, no máximo
 FINO_TETO_MS = 1500         # o ajuste fino nunca passa disto
 FINO_PARADO = 3.0           # graus/s: abaixo disto o robô parou de girar
 FINO_FREIO_MS = 30          # palpite inicial do tempo de freio (ele aprende)
+# Com GIRO_FINO, o grosso freia mirando a FINO_GROSSO_SAI do alvo (no lugar de
+# GIRO_GROSSO_SAI). Simulador: 0,5 dá p95 de 0,65 grau real e +90 ms por giro
+# em relação ao método antigo; 1,0 é ~40 ms mais lento, 0,25 ~25 ms mais
+# rápido, com a mesma precisão (docs/giroscopio.md).
+FINO_GROSSO_SAI = 0.5
 
 # ANDAR_NO_RUMO: andar() anda pelo andar_no_rumo() no rumo DESEJADO. O
 # db.straight segurava o rumo MEDIDO no começo da reta (até 2 graus errado,
@@ -170,22 +175,33 @@ TOL_DB_DIST_VEL = 20        # mm/s
 #  - seguir_linha termina com o rumo MÉDIO dos últimos ~200 ms;
 #  - a 2ª passada de alinhar_na_linha é mais lenta (ALINHAR_VEL_FINA).
 CORRECOES_RUMO = True
-ALINHAR_VEL_FINA = 25       # mm/s na passada fina dos alinhamentos
+ALINHAR_VEL_FINA = 15       # mm/s na passada fina (simulador: p95 0,33 grau, +0,4 s)
 
 # --- Largada: o rumo da MESA -------------------------------------------------
 # LARGADA_COMPENSADA: o rumo 3D do firmware 4.x acompanha o robô quando ele é
-# levantado e posto de volta na base. A 1ª saída (ou a rotina Z) fixa a
-# direção da mesa; nas outras, o erro com que o robô foi SOLTO é medido e vira
-# o rumo inicial: o robô sabe que saiu 2 graus torto e corrige no 1º
-# movimento. A direção nominal da saída é o múltiplo de LARGADA_PASSO mais
-# perto (0, 90, 180, -90), ou o 3º item da tupla em saidas.SAIDAS.
+# levantado e posto de volta na base, então a cada largada há DUAS medidas de
+# para onde o robô aponta na mesa:
+#   - a MÃO de quem soltou ("está na direção da saída"), com erro de
+#     LARGADA_SIGMA_MAO graus (a olho ~1,5; com o gabarito ~0,3);
+#   - o GIROSCÓPIO ("está d graus torto"), cujo erro cresce com o tempo desde
+#     a última referência (deriva do bias + escala no manuseio).
+# As duas são FUNDIDAS pelo peso de cada uma (filtro de Kalman de um estado):
+# o robô assume que está w.d graus torto, com w = sigma_mao^2 /
+# (sigma_mao^2 + sigma_giro^2), e isso vira a nova referência. Simulador: a
+# fusão é melhor que só a mão e que só o giroscópio em todas as largadas.
+# A 1ª saída (ou a rotina Z) fixa a referência. A direção nominal é o
+# múltiplo de LARGADA_PASSO mais perto (0, 90, 180, -90) ou o 3º item da
+# tupla em saidas.SAIDAS.
 LARGADA_COMPENSADA = True
+LARGADA_SIGMA_MAO = 0.3     # graus (1 sigma): 0,3 com o GABARITO; 1,5 a olho
+LARGADA_DERIVA = 2.0        # graus/min (1 sigma) do rumo da mesa: a rotina D
+                            # mede a parte parada; com missões, ~2x o medido
 LARGADA_PASSO = 90.0
 LARGADA_MAX_DESVIO = 8.0    # graus: mais torto que isto não compensa (avisa)
 LARGADA_REF_MAX_S = 600     # referência da mesa mais velha que isto não vale
-# Mira no menu: com uma saída selecionada, a luz mostra o desvio da largada.
-# Verde: abaixo de LARGADA_MIRA_OK com o giroscópio parado (bias recém-
-# reestimado); amarela: abaixo de LARGADA_MIRA_PERTO; vermelha: acima.
+# Mira no menu: com uma saída selecionada, a luz mostra o desvio ESTIMADO da
+# largada (já fundido). Verde: abaixo de LARGADA_MIRA_OK com o giroscópio
+# parado; amarela: abaixo de LARGADA_MIRA_PERTO; vermelha: acima.
 LARGADA_MIRA = True
 LARGADA_MIRA_OK = 0.5
 LARGADA_MIRA_PERTO = 2.0

@@ -133,6 +133,7 @@ _freio_reta_ms = float(config.RETA_FREIO_MS)    # aprendido no fim das retas
 # apontava o rumo 0 desta saída. _mesa_cron mede a idade da referência.
 _nominal = 0.0
 _mesa_cron = None
+_mesa_var = 0.0             # variância (graus^2) do rumo da mesa na referência
 
 
 # --- Utilidades internas ---------------------------------------------------------
@@ -435,7 +436,7 @@ def _giro_por_velocidade(normalizar, taxa):
         sai = config.GIRO_GROSSO_SAI
         if config.GIRO_FINO:
             # freia antes: o robô ainda gira ~guinada x tempo de freio
-            sai += abs(_taxa_medida()) * _freio_ms / 1000.0
+            sai = config.FINO_GROSSO_SAI + abs(_taxa_medida()) * _freio_ms / 1000.0
         if restante <= sai:
             break
         t = cron.time()
@@ -1085,7 +1086,7 @@ def alinhar_na_base(rumo=0, vel=LENTO, max_cm=30, fino=True):
 
 
 def _alinhar(vel, max_cm, rumo, fino, cor_alvo, nome):
-    global _rumo_alvo, _mesa_cron
+    global _rumo_alvo, _mesa_cron, _mesa_var
     db.stop()
     ok = _quadrar(vel, cor_alvo, max_cm)
     if ok and fino:
@@ -1110,7 +1111,9 @@ def _alinhar(vel, max_cm, rumo, fino, cor_alvo, nome):
         db.reset(distance=db.distance(), angle=rumo)
         _rumo_alvo = float(rumo)
         if _mesa_cron is not None:
-            _mesa_cron = StopWatch()        # o rumo da mesa acabou de ser reancorado
+            # o rumo da mesa acabou de ser reancorado numa linha do tapete
+            _mesa_cron = StopWatch()
+            _mesa_var = 0.25 ** 2
     else:
         _rumo_alvo = db.angle()
     db.stop()
@@ -1206,9 +1209,19 @@ def rumo_mesa():
     return db.angle() + _nominal
 
 
+def _peso_giro():
+    # Peso do giroscópio na fusão com a mão: sigma do rumo da mesa agora.
+    minutos = _mesa_cron.time() / 60000.0
+    var_giro = _mesa_var + (config.LARGADA_DERIVA * minutos) ** 2
+    var_mao = config.LARGADA_SIGMA_MAO ** 2
+    w = var_mao / (var_mao + var_giro) if var_mao + var_giro > 0 else 1.0
+    return w, var_mao * var_giro / (var_mao + var_giro) if var_mao + var_giro > 0 else 0.0
+
+
 def desvio_largada(nominal=None):
     """(desvio, nominal) do robô parado na base: quanto ele está torto em
-    relação à direção nominal da saída (graus). `nominal` None = o múltiplo de
+    relação à direção nominal da saída (graus), já fundindo o giroscópio com a
+    mão (ver config.LARGADA_COMPENSADA). `nominal` None = o múltiplo de
     config.LARGADA_PASSO mais perto. None se não há referência da mesa válida."""
     if not _mesa_valida():
         return None
@@ -1217,15 +1230,19 @@ def desvio_largada(nominal=None):
         n = round(h / config.LARGADA_PASSO) * config.LARGADA_PASSO
     else:
         n = float(nominal)
-    return _norm180(h - n), n
+    d = _norm180(h - n)
+    if abs(d) > config.LARGADA_MAX_DESVIO:
+        return d, n                 # torto demais: largar() não compensa
+    return _peso_giro()[0] * d, n
 
 
 def definir_mesa(nominal=0):
     """O robô parado aponta EXATAMENTE para a direção `nominal` da mesa (ex.: no
     gabarito). A partir daqui as largadas são medidas contra isso."""
-    global _nominal, _mesa_cron
+    global _nominal, _mesa_cron, _mesa_var
     _nominal = float(nominal) - db.angle()
     _mesa_cron = StopWatch()
+    _mesa_var = config.LARGADA_SIGMA_MAO ** 2
 
 
 def zerar_rumo():
@@ -1249,9 +1266,11 @@ def largar(nominal=None):
     (`nominal`, ou o múltiplo de LARGADA_PASSO mais perto). O 1º movimento
     corrige. Sem referência (1ª saída), esta largada vira a referência.
     """
-    global _nominal, _mesa_cron
+    global _nominal, _mesa_cron, _mesa_var
     h = db.angle() + _nominal               # rumo na mesa, antes de zerar
     r = desvio_largada(nominal) if config.LARGADA_COMPENSADA else None
+    if r is not None:
+        w, var_fundida = _peso_giro()
     zerar_rumo()
     if not config.LARGADA_COMPENSADA:
         return
@@ -1263,6 +1282,7 @@ def largar(nominal=None):
             # referência velha: ainda serve para saber a direção nominal
             _nominal = round(h / config.LARGADA_PASSO) * config.LARGADA_PASSO
         _mesa_cron = StopWatch()
+        _mesa_var = config.LARGADA_SIGMA_MAO ** 2
         print("Largada: referencia da mesa fixada (direcao %d)" % _nominal)
     elif abs(r[0]) > config.LARGADA_MAX_DESVIO:
         # Torto demais para ser erro de mão: saída diagonal não declarada.
@@ -1270,9 +1290,14 @@ def largar(nominal=None):
         _nominal = h
         print("AVISO: largada %.1f graus fora de %d: sem compensar" % (r[0], r[1]))
     else:
+        # r[0] já é o desvio fundido (w x o que o giroscópio vê). Ele vira o
+        # rumo inicial e a nova referência da mesa, com a variância fundida.
         db.reset(distance=0, angle=r[0])
         _nominal = r[1]
-        print("Largada: %+.1f graus da direcao %d (compensado)" % (r[0], r[1]))
+        _mesa_cron = StopWatch()
+        _mesa_var = var_fundida
+        print("Largada: %+.1f graus da direcao %d (compensado, peso do giroscopio %.2f)"
+              % (r[0], r[1], w))
 
 
 def zerar_posicao():

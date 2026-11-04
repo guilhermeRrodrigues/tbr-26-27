@@ -286,7 +286,7 @@ def fabricar(mundo):
         def run(self, vel):
             if self.roda is not None:
                 if mundo.db is not None:
-                    mundo.db.parar("coast")
+                    mundo.db.desligar()     # o motor sai do DriveBase, a outra roda não
                 self._r()[2] = "vel"
                 self._r()[3] = vel
                 return
@@ -335,6 +335,8 @@ def fabricar(mundo):
         def hold(self):
             if self.roda is not None:
                 # segura parado: velocidade zero (aproximação)
+                if mundo.db is not None:
+                    mundo.db.desligar()
                 self._r()[2] = "vel"
                 self._r()[3] = 0.0
                 return

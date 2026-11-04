@@ -98,8 +98,10 @@ class Parametros:
         u = rng.uniform
         g = rng.gauss
         escala = g(0.0, 0.004)                      # ~0,4% (datasheet: ±1%)
-        assim = g(0.0, 0.0015)                      # diferença hor/anti
-        cal_err = g(0.0, 0.0015)                    # erro da rotina G
+        # Diferença de escala entre os sentidos: o firmware não corrige (um
+        # fator só). MEMS: não linearidade ~0,01% do fundo; 0,05% é prudente.
+        assim = g(0.0, 0.0005)
+        cal_err = g(0.0, 0.001)                     # erro da rotina G (2 sentidos)
         return replace(
             self,
             roda_mm=self.roda_mm * (1 + g(0, 0.004)),
@@ -503,6 +505,13 @@ class ControleDB:
                                vel, self.acel_reta, passa)
         self.rumo.iniciar_alvo(self.rumo_med(), self.taxa_med(), base_r + graus,
                                taxa, self.acel_reta * k if vel else self.acel_giro, passa)
+
+    def desligar(self):
+        """Controle desligado sem mexer nas rodas (um motor foi comandado sozinho)."""
+        self.dist.modo = Trajetoria.PARADA
+        self.rumo.modo = Trajetoria.PARADA
+        self.dist.terminou = True
+        self.rumo.terminou = True
 
     def parar(self, modo):
         self.dist.modo = Trajetoria.PARADA
