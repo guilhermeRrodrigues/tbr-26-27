@@ -134,6 +134,24 @@ As chamadas mais usadas em `hub/missoes.py` são `andar` (37), `virar_para` (30)
 - **M5:** ver o bug do 180°.
 - **`virar_ate_travar`** (M2): quando não trava, agora fecha no ângulo pedido com o giro fino, em vez de parar onde o motor parou.
 
+### Cuidados novos no código das saídas
+
+- **Não chamem `zerar_rumo()` no começo de uma saída:** ele descarta a compensação do `largar()`, e o robô passa a achar que o torto é reto. O menu já chama `largar()`.
+- **`andar(..., parar=False)` precisa de outro movimento logo depois**, como `andar` ou `curva`. Seguido de um anexo ou de uma espera, o robô continua andando. As saídas de hoje só emendam movimentos.
+- **`alinhar_*` devolve `False` e não mexe no rumo** se o esquadro girar mais que `ALINHAR_MAX_GIRO` (15°). Isso acontece quando um sensor já começou sobre a cor ou numa sombra.
+
+### Custo de tempo por giro (revisão adversária, 40 robôs)
+
+| | antes | agora |
+|---|---|---|
+| `virar_para(3)` | 172 ms | 235 ms |
+| `virar_para(20)` | 249 ms | 354 ms |
+| `virar_para(90)` | 743 ms | 838 ms |
+| `virar_para(180)` | 991 ms | 1359 ms |
+| `andar(30)` | 1422 ms | 1356 ms |
+
+Numa saída típica de andar e virar, o tempo empata: as retas ficaram mais rápidas do que os giros ficaram lentos. Uma saída com muitos giros de 180° perde ~0,4 s em cada um. Se o tempo apertar, `GIRO_TOL_FINAL = 0.8` devolve boa parte. O `tbr simular` soma 152 s com as trocas, contra 120 s de partida, igual à `main`: a escolha das saídas continua sendo da equipe.
+
 ## Chaves de volta
 
 Todas em `hub/config.py`. `False` volta ao comportamento de antes desta branch.
