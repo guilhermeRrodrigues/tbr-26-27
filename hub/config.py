@@ -196,7 +196,7 @@ ALINHAR_MAX_GIRO = 15.0     # graus
 # múltiplo de LARGADA_PASSO mais perto (0, 90, 180, -90) ou o 3º item da
 # tupla em saidas.SAIDAS.
 LARGADA_COMPENSADA = True
-LARGADA_SIGMA_MAO = 0.3     # graus (1 sigma): 0,3 com o GABARITO; 1,5 a olho
+LARGADA_SIGMA_MAO = 1.5     # graus (1 sigma): 1,5 a olho (hoje); 0,3 quando usarem o GABARITO
 LARGADA_DERIVA = 2.0        # graus/min (1 sigma) do rumo da mesa: a rotina D
                             # mede a parte parada; com missões, ~2x o medido
 LARGADA_PASSO = 90.0
