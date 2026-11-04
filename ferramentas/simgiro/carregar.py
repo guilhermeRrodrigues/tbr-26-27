@@ -75,7 +75,9 @@ def novo_robo(p=None, semente=None, config=None, mundo=None):
     mundo = mundo or Mundo(p or Parametros(), semente)
     falsos = pybricks_falso.fabricar(mundo)
     modulos = dict(falsos)
-    salvo = _instalar(modulos)
+    # salva também os nomes que só entram depois (config, calibracao, tbr)
+    salvo = {k: sys.modules.get(k) for k in ("config", "calibracao", "tbr")}
+    salvo.update(_instalar(modulos))
     try:
         cfg = _executar("config")
         for k, v in (config or {}).items():
