@@ -253,7 +253,7 @@ def _esperar_db(teto_ms, vigiar_giro=None, progresso=False):
         t = cron.time()
         if config.TOLERANCIAS_DB and t > teorico + 300:
             st = db.state()
-            if abs(st[1]) < 5 and abs(st[3]) < 2:
+            if abs(st[1]) < 5 and abs(st[3]) < 2 and not db.stalled():
                 if parado_desde is None:
                     parado_desde = t
                 elif t - parado_desde > 150:
@@ -360,6 +360,9 @@ def _fino(normalizar=True, tol_entra=None):
     global _freio_ms
     if tol_entra is None:
         tol_entra = config.GIRO_TOL_ENTRA
+    # Ainda girando (veio de um coast/freio), o erro de agora mente: o robô
+    # ainda desliza. Só decide "já está no rumo" depois de parar.
+    _esperar_parar()
     if abs(_erro_rumo(normalizar)) <= tol_entra:
         return True
     erro_inicial = _erro_rumo(normalizar)
@@ -406,7 +409,7 @@ def _fino(normalizar=True, tol_entra=None):
         a0 = db.angle()
         db.brake()
         _esperar_parar()
-        if w0 > 5:
+        if w0 > 5 and not travou:
             # quanto girou depois do freio, em "ms de guinada": aprende devagar
             est = abs(db.angle() - a0) / w0 * 1000.0
             _freio_ms = _clamp(0.7 * _freio_ms + 0.3 * est, 5.0, 150.0)
@@ -614,6 +617,8 @@ def andar(cm, vel=NORMAL, parar=True):
     """Anda `cm` centímetros mantendo o rumo atual (negativo = de ré).
 
     parar=False emenda no próximo movimento sem frear (mais rápido, menos preciso).
+    O próximo comando TEM de ser um movimento (andar, curva...): sem ele o robô
+    continua andando.
     """
     if config.ANDAR_NO_RUMO:
         return andar_no_rumo(cm, _rumo_alvo, vel, parar)
@@ -636,7 +641,8 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     alvo é o rumo pedido, e se o robô sair dele no caminho (escorregou, bateu,
     foi empurrado pelo anexo), ele guina de volta enquanto anda.
     Começando mais torto que config.RUMO_VIRAR_ANTES, vira no lugar antes.
-    parar=False emenda no próximo movimento sem frear.
+    parar=False emenda no próximo movimento sem frear; o próximo comando TEM de
+    ser um movimento, ou o robô continua andando.
     """
     global _rumo_alvo
     _rumo_alvo = float(rumo)
@@ -850,7 +856,10 @@ def virar_ate_travar(rumo, vel=LENTO, ms=250):
             break
         db.drive(0, taxa)
         wait(config.PERIODO_MS)
-    db.stop()
+    if config.CORRECOES_RUMO and not travou:
+        db.brake()                  # em coast deslizava ~5 graus além do alvo
+    else:
+        db.stop()
     if travou:
         _rumo_alvo = db.angle()
     elif config.CORRECOES_RUMO:
@@ -866,11 +875,16 @@ def _esperar_passo_sacudida(cron, ms):
     # quando o tempo total acaba.
     # Sempre ao menos uma volta (_checar + wait): um passo que já nasce pronto
     # ou travado não pode deixar o laço de sacudir() girar sem parar.
+    passo = StopWatch()
     while True:
         _checar()
         wait(config.PERIODO_MS)
         if db.done():
             return
+        if config.TOLERANCIAS_DB and passo.time() > 150:
+            st = db.state()
+            if abs(st[1]) < 5 and abs(st[3]) < 2:
+                return              # parado a um fio da tolerância: próximo passo
         if cron.time() >= ms or db.stalled():
             db.stop()
             return
@@ -1036,9 +1050,13 @@ def _quadrar(vel_mm, cor_alvo, max_cm):
     d0 = db.distance()
     feito_dir = False
     feito_esq = False
+    cron = StopWatch()
+    # Teto: uma roda presa (ou um sensor que nunca vê a cor) com a outra já
+    # parada não anda a distância máxima e prenderia o laço para sempre.
+    teto = _teto(max_cm * 10.0 / abs(vel_mm) * 1000)
     while not (feito_dir and feito_esq):
         _checar()
-        if abs(db.distance() - d0) >= max_cm * 10:
+        if abs(db.distance() - d0) >= max_cm * 10 or cron.time() > teto:
             _roda_dir.hold()
             _roda_esq.hold()
             return False
@@ -1088,6 +1106,7 @@ def alinhar_na_base(rumo=0, vel=LENTO, max_cm=30, fino=True):
 def _alinhar(vel, max_cm, rumo, fino, cor_alvo, nome):
     global _rumo_alvo, _mesa_cron, _mesa_var
     db.stop()
+    a0 = db.angle()
     ok = _quadrar(vel, cor_alvo, max_cm)
     if ok and fino:
         # Recuo FIXO, não "até o branco": atrás da faixa preta pode haver fundo
@@ -1104,6 +1123,14 @@ def _alinhar(vel, max_cm, rumo, fino, cor_alvo, nome):
     _atualizar_pose()
     if not ok:
         print("AVISO: %s nao achou a linha em %d cm" % (nome, max_cm))
+        return False
+    girou = db.angle() - a0
+    if config.CORRECOES_RUMO and abs(girou) > config.ALINHAR_MAX_GIRO:
+        # Um sensor já começou sobre a cor (sombra, logo) ou uma roda patinou:
+        # o esquadro é falso. Não apaga o giroscópio com ele.
+        print("AVISO: %s girou %.1f graus: rumo NAO reescrito" % (nome, girou))
+        _rumo_alvo = db.angle()
+        db.stop()
         return False
     if rumo is not None:
         # db.reset e não hub.imu.reset_heading: com use_gyro, o reset do heading
@@ -1246,7 +1273,11 @@ def definir_mesa(nominal=0):
 
 
 def zerar_rumo():
-    """O rumo atual vira 0 e a posição volta a (0, 0)."""
+    """O rumo atual vira 0 e a posição volta a (0, 0).
+
+    O rumo da mesa continua valendo. Mas, no começo de uma saída, isto DESCARTA
+    a compensação do largar(): o robô passa a achar que o torto é reto. O menu
+    já chama largar(); a saída não precisa chamar zerar_rumo()."""
     global _rumo_alvo, _x, _y, _dist_ant, _nominal
     db.stop()
     _nominal = _nominal + db.angle()        # o rumo da MESA continua o mesmo

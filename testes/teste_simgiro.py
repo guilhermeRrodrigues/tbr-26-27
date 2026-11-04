@@ -125,3 +125,17 @@ def teste_chaves_de_volta_rodam():
     for nome in ("giro", "reta", "largada"):
         r = cenarios.CENARIOS[nome](7, velho)
         assert r
+
+
+def teste_virar_ate_travar_fecha_no_alvo():
+    # Sem nada para travar, tem de terminar no rumo pedido (antes deslizava
+    # ~5 graus em coast além do alvo).
+    for semente in range(5):
+        robo = novo_robo(Parametros(), semente=semente)
+        t, m = robo.tbr, robo.mundo
+        m.avancar(1500)
+        t.zerar_rumo()
+        for alvo in (90, 0, -90, 180):
+            assert t.virar_ate_travar(alvo) is False
+            m.avancar(300)
+            assert abs(_norm(m.theta - alvo)) < 1.0, (semente, alvo, m.theta)

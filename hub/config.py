@@ -176,6 +176,9 @@ TOL_DB_DIST_VEL = 20        # mm/s
 #  - a 2ª passada de alinhar_na_linha é mais lenta (ALINHAR_VEL_FINA).
 CORRECOES_RUMO = True
 ALINHAR_VEL_FINA = 15       # mm/s na passada fina (simulador: p95 0,33 grau, +0,4 s)
+# Alinhar que gira mais que isto é esquadro falso (um sensor já começou sobre
+# a cor, ou uma roda patinou): devolve False e NÃO reescreve o rumo.
+ALINHAR_MAX_GIRO = 15.0     # graus
 
 # --- Largada: o rumo da MESA -------------------------------------------------
 # LARGADA_COMPENSADA: o rumo 3D do firmware 4.x acompanha o robô quando ele é
