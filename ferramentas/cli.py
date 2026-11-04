@@ -11,6 +11,7 @@ Para escolher o hub por nome: `tbr gravar --nome "Pybricks Hub"`.
 import argparse
 import ast
 import asyncio
+import os
 import subprocess
 import sys
 
@@ -88,8 +89,11 @@ def _pybricksdev(args, rodar):
         cmd += ["--name", args.nome]
     cmd += ["--start", "--wait"] if rodar else ["--no-start"]
     cmd.append(str(PROGRAMA))
-    print("$ " + " ".join(cmd))
-    return subprocess.call(cmd)
+    print("$ " + " ".join(cmd), flush=True)
+    # Sem buffer: com `| tee arquivo` o console do hub aparece na hora, e não
+    # só quando o programa termina.
+    env = dict(os.environ, PYTHONUNBUFFERED="1")
+    return subprocess.call(cmd, env=env)
 
 
 def gravar(args):
@@ -109,6 +113,9 @@ def rodar(args):
 
 # --- main ----------------------------------------------------------------------------
 def main(argv=None):
+    # Linha a linha também com `| tee`: senão as mensagens do PC saem fora de
+    # ordem com o console do hub.
+    sys.stdout.reconfigure(line_buffering=True)
     p = argparse.ArgumentParser(prog="tbr", description="Ferramentas do CoopBot (TBR 2026)")
     sub = p.add_subparsers(dest="comando", required=True)
 
