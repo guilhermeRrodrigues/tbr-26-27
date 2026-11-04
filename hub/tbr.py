@@ -302,17 +302,77 @@ def _creep(normalizar=True, tol_entra=None, tol_sai=None):
     return ok
 
 
+def _giro_por_velocidade(normalizar, taxa):
+    # Giro GROSSO fechado no giroscópio por velocidade (db.drive), como o
+    # andar_no_rumo faz na reta. O db.turn dava a manobra por concluída com
+    # ~15 graus ainda faltando, depois de ~1,4 s num giro de 40.
+    # Rampa de frenagem w = sqrt(a.erro), com metade da ACEL_GIRO de folga
+    # para o atraso do giroscópio. Sai girando devagar a GIRO_GROSSO_SAI do
+    # alvo, e o creep fecha o resto.
+    erro0 = _erro_rumo(normalizar)
+    sentido = 1.0 if erro0 > 0 else -1.0
+    cron = StopWatch()
+    teto = _teto(abs(erro0) / taxa * 1000)
+    h_ref = db.angle()
+    t_ref = 0
+    while True:
+        _checar()
+        if _giro_invertido(erro0, normalizar):
+            return False
+        restante = _erro_rumo(normalizar) * sentido
+        if restante <= config.GIRO_GROSSO_SAI:
+            break
+        t = cron.time()
+        if t > teto:
+            db.stop()
+            print("AVISO: giro estourou o teto de %d ms" % teto)
+            return False
+        h = db.angle()
+        if abs(h - h_ref) >= 1:
+            h_ref = h
+            t_ref = t
+        elif t - t_ref > config.STALL_ABORTA_MS:
+            db.stop()
+            print("AVISO: robo TRAVADO no giro, abortado")
+            return False
+        w = min(taxa, max(config.CREEP_TAXA_MIN, sqrt(config.ACEL_GIRO * restante)))
+        db.drive(0, sentido * w)
+        wait(config.PERIODO_MS)
+    db.drive(0, 0)
+    _atualizar_pose()
+    return True
+
+
 def _ir_ate_rumo(normalizar=True, vel=NORMAL):
     erro = _erro_rumo(normalizar)
     ok = True
+    cron = StopWatch()
+    t_grosso = 0
+    sobra = erro
     if abs(erro) > config.GIRO_GROSSO_MIN:
         taxa = _taxa_giro(vel)
         _aplicar_vel(NORMAL, taxa)
-        db.turn(erro, wait=False)      # erro > 0: horário
-        ok = _esperar_db(_teto(abs(erro) / taxa * 1000), (erro, normalizar))
+        if config.GIRO_POR_VELOCIDADE:
+            ok = _giro_por_velocidade(normalizar, taxa)
+        else:
+            db.turn(erro, wait=False)      # erro > 0: horário
+            ok = _esperar_db(_teto(abs(erro) / taxa * 1000), (erro, normalizar))
+        t_grosso = cron.time()
+        sobra = _erro_rumo(normalizar)
         if not ok:
             return False               # não insiste com o creep num giro que falhou
-    return _creep(normalizar) and ok
+        # O grosso entrega a GIRO_GROSSO_SAI (2°) do alvo, que não passa do
+        # GIRO_TOL_ENTRA (2°): o creep normal achava "já está bom" e todo giro
+        # terminava ~1,8° curto. Depois do grosso o creep sempre fecha.
+        ok = _creep(normalizar, tol_entra=config.GIRO_TOL_SAI) and ok
+    else:
+        ok = _creep(normalizar) and ok
+    if config.DIAG_GIRO:
+        # Para achar onde o giro gasta tempo: no giro grosso (db.turn até o
+        # db.done) ou no creep que fecha o resto.
+        print("DIAG giro %.1f: grosso %d ms (sobrou %.1f) + creep %d ms (final %.1f)"
+              % (erro, t_grosso, sobra, cron.time() - t_grosso, _erro_rumo(normalizar)))
+    return ok
 
 
 def _sensor(qual):
@@ -475,12 +535,18 @@ def andar_ate_travar(max_cm, vel=LENTO, ms=250):
     Devolve True se travou e False se chegou ao limite sem encostar.
     Ao travar, solta as rodas sem tentar corrigir o rumo (encostado, o giro
     fino brigaria com a parede). Roda que patina continua contando como
-    avanço: encoste devagar (LENTO)."""
-    _creep()                                     # sai alinhado ao rumo
+    avanço: encoste devagar (LENTO).
+    Pode vir emendado num andar(..., RAPIDO, parar=False): chega rápido e só
+    o fim é devagar (o robô freia de uma velocidade para a outra andando)."""
+    if abs(db.state()[1]) < 5:
+        _creep()                                 # parado: sai alinhado ao rumo
+        _aplicar_vel(vel)                        # aceleração do db.drive
+    # Emendado (já andando): sem creep, que giraria no lugar, e sem
+    # db.settings com o robô em movimento. A aceleração já é a ACEL_RETA da
+    # reta anterior, e o rumo se corrige andando no laço abaixo.
     alvo_mm = abs(max_cm) * 10.0
     sentido = 1.0 if max_cm >= 0 else -1.0
     v_max = abs(vel)
-    _aplicar_vel(vel)                            # aceleração do db.drive
     d0 = db.distance()
     cron = StopWatch()
     teto = _teto(alvo_mm / v_max * 1000)

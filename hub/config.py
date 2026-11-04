@@ -107,6 +107,12 @@ GARRA_FORCA_APERTAR = 25    # apertar(): fica empurrando sem parar, então pouca
 # Erro maior que GIRO_GROSSO_MIN: manobra de posição (db.turn).
 # Erro pequeno: "creep" por velocidade, proporcional ao erro, até GIRO_TOL_SAI.
 GIRO_GROSSO_MIN = 8.0   # graus
+# Giro grosso por velocidade fechado no giroscópio (True) ou pelo db.turn
+# (False, o método antigo: na M5 ele parava com ~15 graus faltando, depois de
+# ~1,4 s, e o creep levava mais ~0,7 s para fechar). O grosso por velocidade
+# entrega o giro ao creep a GIRO_GROSSO_SAI graus do alvo.
+GIRO_POR_VELOCIDADE = True
+GIRO_GROSSO_SAI = 2.0   # graus
 GIRO_TOL_ENTRA = 2.0    # graus: só corrige acima disto
 GIRO_TOL_SAI = 0.8      # graus: e para abaixo disto
 CREEP_GANHO = 3.0       # graus/s de guinada por grau de erro
@@ -152,6 +158,9 @@ TETO_FATOR = 3
 # levou (aparece no terminal do `tbr rodar`). Sem PC conectado o print não
 # vai a lugar nenhum, mas na competição pode deixar False.
 CRONOMETRO = True
+# Diagnóstico do giro: cada virar_para/girar imprime quanto levou o giro
+# grosso e quanto levou o creep. Serve para acelerar os giros; depois, False.
+DIAG_GIRO = True
 
 # Duração da partida (s). O cronômetro começa na 1ª saída e não para.
 PARTIDA_S = 120

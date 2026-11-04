@@ -152,24 +152,71 @@ def m4_epis():
     andar(-200, RAPIDO)  # volta para a base
 
 
-def m5_peca():
-    apertar()
-    andar(45)
-    virar_para(320)
-    andar_ate_travar(45)
-    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500)
-    anexo2_ate_travar(HORARIO, forca=100, teto_ms=1500)
-    andar(-35)
-    virar_para(0)
-    andar(-50)
-
-
 def m6_carrinho():
+    apertar(esperar=False)                          # a garra fecha enquanto anda
+    andar(45, RAPIDO)
+    virar_para(320)
+    # Chega rápido e só encosta devagar. O andar_ate_travar(35) não encostava,
+    # então o alvo está a mais de 35 cm: o robô passa de RAPIDO para LENTO
+    # nos ~11 cm depois dos 25 e chega a ~36 cm já devagar. Com a linha
+    # "encostou em X cm" do log, dá para trocar o 25 por (25 + X) - 5 e o 20
+    # por uns 10.
+    andar(25, RAPIDO, parar=False)
+    andar_ate_travar(20)
+    # Os dois anexos ao mesmo tempo
+    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
+    anexo2_ate_travar(HORARIO, forca=100, teto_ms=1500)
+    esperar_anexos()
+    # Se a peça escorregar na ré, volte estas duas para NORMAL.
+    andar(-35, RAPIDO)
+    virar_para(0)
+    andar(-55, RAPIDO)
+
+
+def m5_peca():
     """M6 Acesso Seguro — 40 / 17 pts (DP-Middle p.13-14).
 
     Carrinho DENTRO da área verde: totalmente 40, parcialmente 17.
     """
-    pass
+    andar_no_rumo(61.5, 0)
+    virar_para(90)
+    andar_no_rumo(12.5, 90)
+    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
+    andar_no_rumo(-14, 90)
+    anexo1_aumentar(37.5)
+    virar_para(65)
+    anexo1_aumentar(-37.5)
+    virar_para(180)
+    andar_no_rumo(45, 190)
+    anexo1_ir_para(0, esperar=False)
+    virar_para(0)
+    andar_no_rumo(44, 0)
+    virar_para(90)
+    andar_no_rumo(25, 90)
+    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
+    andar_no_rumo(-28, 90)
+    anexo1_aumentar(41)
+    virar_para(65)
+    anexo1_aumentar(-41)
+    virar_para(180)
+    andar_no_rumo(47, 180)
+    anexo1_ir_para(0)
+    virar_para(0)
+    andar_no_rumo(47.5, 0)
+    virar_para(90)
+    andar_no_rumo(38.5, 90)
+    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
+    andar_no_rumo(-40, 90)
+    anexo1_aumentar(35)
+    virar_para(65)
+    anexo1_aumentar(-35)
+    virar_para(180)
+    andar_no_rumo(50, 180)
+    anexo1_ir_para(0, esperar=False)
+    virar_para(0)
+    
+
+
 
 
 def m7_bandeira():
