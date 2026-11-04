@@ -26,7 +26,8 @@ def carregar_saidas():
         if nome in sys.modules:
             importlib.reload(sys.modules[nome])
     import saidas
-    return saidas.SAIDAS
+    # Uma entrada pode ter um 3º item (direção nominal da largada, ver main.py).
+    return [(e[0], e[1]) for e in saidas.SAIDAS]
 
 
 def simular_saida(nome, funcao):

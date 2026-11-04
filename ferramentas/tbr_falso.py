@@ -21,6 +21,7 @@ RAPIDO = _C["VEL_RAPIDO"]
 PRETO = "preto"
 BRANCO = "branco"
 VERDE = "verde"
+BORDA = "borda"
 DIR = "dir"
 ESQ = "esq"
 QUALQUER = "qualquer"
@@ -249,6 +250,15 @@ def alinhar_na_linha(vel=LENTO, max_cm=30, rumo=None, fino=True):
     return True
 
 
+def alinhar_na_base(rumo=0, vel=LENTO, max_cm=30, fino=True):
+    global _rumo
+    _avancar(max_cm / 2.0)
+    if rumo is not None:
+        _rumo = float(rumo)
+    _passo("alinhar_na_base()", _t_reta(max_cm / 2.0, vel) + (1.0 if fino else 0.0))
+    return True
+
+
 def seguir_linha(cm, sensor=DIR, borda=ESQ, vel=_C["SEGUIR_VEL"], kp=None, kd=None):
     _avancar(cm)
     _passo("seguir_linha(%g)" % cm, _t_reta(cm, vel))
@@ -267,6 +277,23 @@ def seguir_linha_ate_cruzamento(sensor=DIR, borda=ESQ, vel=_C["SEGUIR_VEL"],
 def zerar_rumo():
     global _x, _y, _rumo
     _x = _y = _rumo = 0.0
+
+
+def largar(nominal=None):
+    # No dublê o robô é sempre solto perfeito: a largada não tem erro.
+    zerar_rumo()
+
+
+def rumo_mesa():
+    return _rumo
+
+
+def desvio_largada(nominal=None):
+    return None
+
+
+def definir_mesa(nominal=0):
+    pass
 
 
 def zerar_posicao():

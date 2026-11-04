@@ -43,6 +43,7 @@ RAPIDO = config.VEL_RAPIDO
 PRETO = "preto"
 BRANCO = "branco"
 VERDE = "verde"
+BORDA = "borda"         # saiu do branco (moldura da base): alinhar_na_base
 
 DIR = "dir"
 ESQ = "esq"
@@ -107,6 +108,16 @@ cal, cal_gravada = calibracao.carregar(hub)
 db = DriveBase(_roda_esq, _roda_dir, cal["roda"], cal["bitola"])
 db.use_gyro(True)
 
+if config.TOLERANCIAS_DB:
+    # O "concluído" padrão do pbio aceita ~18 graus e ~13 mm (docs/giroscopio.md).
+    try:
+        db.heading_control.target_tolerances(speed=config.TOL_DB_RUMO_VEL,
+                                             position=config.TOL_DB_RUMO)
+        db.distance_control.target_tolerances(speed=config.TOL_DB_DIST_VEL,
+                                              position=config.TOL_DB_DIST)
+    except Exception as e:
+        print("AVISO: target_tolerances recusado (%s); done() com o padrao" % e)
+
 # --- Estado ------------------------------------------------------------------------
 _rumo_alvo = 0.0
 _x = 0.0
@@ -116,6 +127,12 @@ _cron_partida = None
 _vel_aplicada = None
 _tarefa = [None, None]      # tarefa de cada anexo (ver _vigiar_anexos)
 _resultado = [True, True]   # como terminou o último movimento de cada anexo
+_freio_ms = float(config.FINO_FREIO_MS)     # aprendido no ajuste fino do giro
+_freio_reta_ms = float(config.RETA_FREIO_MS)    # aprendido no fim das retas
+# Rumo da MESA = db.angle() + _nominal: _nominal é a direção da mesa para onde
+# apontava o rumo 0 desta saída. _mesa_cron mede a idade da referência.
+_nominal = 0.0
+_mesa_cron = None
 
 
 # --- Utilidades internas ---------------------------------------------------------
@@ -224,11 +241,24 @@ def _esperar_db(teto_ms, vigiar_giro=None, progresso=False):
     cron = StopWatch()
     stall_desde = None
     vigia = [0, db.distance()]
+    # Com TOLERANCIAS_DB apertadas, o atrito pode deixar o robô parado a um
+    # fio da tolerância: depois do tempo teórico, parado de vez = concluído.
+    teorico = (teto_ms - config.TETO_MIN_MS) / config.TETO_FATOR
+    parado_desde = None
     while not db.done():
         _checar()
         if vigiar_giro is not None and _giro_invertido(vigiar_giro[0], vigiar_giro[1]):
             return False
         t = cron.time()
+        if config.TOLERANCIAS_DB and t > teorico + 300:
+            st = db.state()
+            if abs(st[1]) < 5 and abs(st[3]) < 2:
+                if parado_desde is None:
+                    parado_desde = t
+                elif t - parado_desde > 150:
+                    break
+            else:
+                parado_desde = None
         if t > teto_ms:
             db.stop()
             print("AVISO: movimento estourou o teto de %d ms" % teto_ms)
@@ -256,6 +286,8 @@ def _creep(normalizar=True, tol_entra=None, tol_sai=None):
     # (db.drive), não por posição (db.turn), porque db.turn de 1-2 graus cai na
     # zona morta do controlador. Para quando chega ou quando PASSA do alvo
     # (nunca fica oscilando de um lado para o outro).
+    if config.GIRO_FINO:
+        return _fino(normalizar, tol_entra)
     if tol_entra is None:
         tol_entra = config.GIRO_TOL_ENTRA
     if tol_sai is None:
@@ -302,6 +334,86 @@ def _creep(normalizar=True, tol_entra=None, tol_sai=None):
     return ok
 
 
+def _taxa_medida():
+    # Guinada medida pelo giroscópio (graus/s).
+    return db.state()[3]
+
+
+def _esperar_parar(teto_ms=250):
+    # Espera a guinada cair abaixo de FINO_PARADO: só então o erro é de verdade.
+    cron = StopWatch()
+    while cron.time() < teto_ms:
+        _checar()
+        if abs(_taxa_medida()) < config.FINO_PARADO:
+            return
+        wait(config.PERIODO_MS)
+
+
+def _fino(normalizar=True, tol_entra=None):
+    # Ajuste FINO do rumo (GIRO_FINO): mede PARADO, gira com um pulso por
+    # velocidade e FREIA antes do alvo, prevendo quanto o robô ainda gira
+    # depois do freio (_freio_ms, aprendido a cada pulso). Repete nos dois
+    # sentidos até GIRO_TOL_FINAL, com FINO_TENTATIVAS e FINO_TETO_MS.
+    # O freio também desliga o controle: o próximo db.drive parte do estado
+    # MEDIDO, sem o atraso acumulado da referência anterior.
+    global _freio_ms
+    if tol_entra is None:
+        tol_entra = config.GIRO_TOL_ENTRA
+    if abs(_erro_rumo(normalizar)) <= tol_entra:
+        return True
+    erro_inicial = _erro_rumo(normalizar)
+    cron = StopWatch()
+    ok = True
+    pulsos = 0
+    travou = False
+    while not travou:
+        _esperar_parar()
+        erro = _erro_rumo(normalizar)
+        if abs(erro) <= config.GIRO_TOL_FINAL:
+            break
+        if pulsos >= config.FINO_TENTATIVAS or cron.time() > config.FINO_TETO_MS:
+            print("AVISO: ajuste fino parou com erro=%.1f" % erro)
+            break
+        pulsos += 1
+        sentido = 1.0 if erro > 0 else -1.0
+        stall_desde = None
+        while True:
+            _checar()
+            if _giro_invertido(erro_inicial, normalizar):
+                return False
+            restante = _erro_rumo(normalizar) * sentido
+            if restante <= abs(_taxa_medida()) * _freio_ms / 1000.0:
+                break
+            t = cron.time()
+            if t > config.FINO_TETO_MS:
+                break
+            if db.stalled():
+                if stall_desde is None:
+                    stall_desde = t
+                elif t - stall_desde > config.STALL_ABORTA_MS:
+                    print("AVISO: travado no ajuste de rumo; erro=%.1f" % _erro_rumo(normalizar))
+                    ok = False
+                    travou = True
+                    break
+            else:
+                stall_desde = None
+            taxa = _clamp(config.CREEP_GANHO * restante,
+                          config.CREEP_TAXA_MIN, config.CREEP_TAXA_MAX)
+            db.drive(0, sentido * taxa)
+            wait(config.PERIODO_MS)
+        w0 = abs(_taxa_medida())
+        a0 = db.angle()
+        db.brake()
+        _esperar_parar()
+        if w0 > 5:
+            # quanto girou depois do freio, em "ms de guinada": aprende devagar
+            est = abs(db.angle() - a0) / w0 * 1000.0
+            _freio_ms = _clamp(0.7 * _freio_ms + 0.3 * est, 5.0, 150.0)
+    db.stop()
+    _atualizar_pose()
+    return ok
+
+
 def _giro_por_velocidade(normalizar, taxa):
     # Giro GROSSO fechado no giroscópio por velocidade (db.drive), como o
     # andar_no_rumo faz na reta. O db.turn dava a manobra por concluída com
@@ -320,7 +432,11 @@ def _giro_por_velocidade(normalizar, taxa):
         if _giro_invertido(erro0, normalizar):
             return False
         restante = _erro_rumo(normalizar) * sentido
-        if restante <= config.GIRO_GROSSO_SAI:
+        sai = config.GIRO_GROSSO_SAI
+        if config.GIRO_FINO:
+            # freia antes: o robô ainda gira ~guinada x tempo de freio
+            sai += abs(_taxa_medida()) * _freio_ms / 1000.0
+        if restante <= sai:
             break
         t = cron.time()
         if t > teto:
@@ -338,12 +454,29 @@ def _giro_por_velocidade(normalizar, taxa):
         w = min(taxa, max(config.CREEP_TAXA_MIN, sqrt(config.ACEL_GIRO * restante)))
         db.drive(0, sentido * w)
         wait(config.PERIODO_MS)
-    db.drive(0, 0)
+    if config.GIRO_FINO:
+        db.brake()          # desliga o controle: o fino parte do estado medido
+    else:
+        db.drive(0, 0)
     _atualizar_pose()
     return True
 
 
+def _desembrulhar_alvo():
+    # Escolhe o caminho UMA vez: o rumo desejado vira o equivalente contínuo
+    # mais perto do rumo atual. Sem isto, num alvo a ~180 graus o ruído levava
+    # o erro normalizado de +180 a -179,99 no meio do giro, e ele parava
+    # achando que já tinha passado (virar_para(180) a partir de 0 não girava).
+    global _rumo_alvo
+    _rumo_alvo = db.angle() + _erro_rumo(True)
+
+
 def _ir_ate_rumo(normalizar=True, vel=NORMAL):
+    if config.CORRECOES_RUMO and normalizar:
+        _desembrulhar_alvo()
+        normalizar = False
+    if config.GIRO_FINO:
+        return _ir_ate_rumo_fino(normalizar, vel)
     erro = _erro_rumo(normalizar)
     ok = True
     cron = StopWatch()
@@ -375,6 +508,35 @@ def _ir_ate_rumo(normalizar=True, vel=NORMAL):
     return ok
 
 
+def _ir_ate_rumo_fino(normalizar, vel):
+    # GIRO_FINO: grosso por velocidade (ou db.turn) terminando com freio, e o
+    # ajuste fino parado até GIRO_TOL_FINAL, inclusive em giros pequenos.
+    erro = _erro_rumo(normalizar)
+    ok = True
+    cron = StopWatch()
+    t_grosso = 0
+    sobra = erro
+    if abs(erro) > config.GIRO_GROSSO_MIN:
+        taxa = _taxa_giro(vel)
+        _aplicar_vel(NORMAL, taxa)
+        if config.GIRO_POR_VELOCIDADE:
+            ok = _giro_por_velocidade(normalizar, taxa)
+        else:
+            db.turn(erro, wait=False)
+            ok = _esperar_db(_teto(abs(erro) / taxa * 1000), (erro, normalizar))
+            db.brake()
+        t_grosso = cron.time()
+        sobra = _erro_rumo(normalizar)
+        if not ok:
+            return False
+    ok = _fino(normalizar, tol_entra=config.GIRO_TOL_FINAL) and ok
+    if config.DIAG_GIRO:
+        print("DIAG giro %.1f: grosso %d ms (sobrou %.1f) + fino %d ms (final %.2f, freio %d ms)"
+              % (erro, t_grosso, sobra, cron.time() - t_grosso, _erro_rumo(normalizar),
+                 _freio_ms))
+    return ok
+
+
 def _sensor(qual):
     if qual == DIR:
         return _cor_dir
@@ -394,6 +556,8 @@ def _vendo(qual, cor_alvo):
         # Cor pela leitura HSV do sensor, não pela reflexão calibrada.
         return _sensor(qual).color() == Color.GREEN
     r = reflexao(qual)
+    if cor_alvo == BORDA:
+        return r <= config.LIMIAR_BORDA
     if cor_alvo == PRETO:
         return r <= config.LIMIAR_PRETO
     if cor_alvo == BRANCO:
@@ -450,6 +614,8 @@ def andar(cm, vel=NORMAL, parar=True):
 
     parar=False emenda no próximo movimento sem frear (mais rápido, menos preciso).
     """
+    if config.ANDAR_NO_RUMO:
+        return andar_no_rumo(cm, _rumo_alvo, vel, parar)
     _creep()                                     # sai alinhado ao rumo
     _aplicar_vel(vel)
     db.straight(cm * 10, then=Stop.HOLD if parar else Stop.NONE, wait=False)
@@ -487,10 +653,13 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     stall_desde = None
     vigia = [0, d0]
     ok = True
+    prever = parar and config.RETA_PREVE_FREIO
     while True:
         _checar()
         restante = alvo_mm - abs(db.distance() - d0)
-        if restante <= 0:
+        # Com RETA_PREVE_FREIO, freia quando o que falta é o que o robô ainda
+        # anda depois do freio (velocidade x _freio_reta_ms, aprendido).
+        if restante <= (abs(db.state()[1]) * _freio_reta_ms / 1000.0 if prever else 0):
             break
         t = cron.time()
         if t > teto:
@@ -516,15 +685,37 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
             v = min(v_max, max(config.RUMO_VEL_FINAL,
                                sqrt(2.0 * config.ACEL_RETA * restante)))
         # A guinada corrige o RUMO, então o sinal não muda andando de ré.
-        db.drive(sentido * v, _taxa_correcao(_erro_rumo()))
+        guinada = _taxa_correcao(_erro_rumo())
+        if config.RETA_LIMITE_RODA:
+            # Folga para corrigir: com a roda de fora no limite do motor, a
+            # correção do giroscópio some e a reta entorta (pbio #1032).
+            v = min(v, config.RETA_LIMITE_RODA - abs(guinada) * pi / 180.0 * cal["bitola"] / 2.0)
+        db.drive(sentido * v, guinada)
         wait(config.PERIODO_MS)
     if parar or not ok:
+        v0 = abs(db.state()[1])
+        d_freio = db.distance()
         db.brake()
+        if prever and ok:
+            _aprender_freio_reta(v0, d_freio)
         _atualizar_pose()
     if parar:
         ok = _creep() and ok
         db.stop()
     return ok
+
+
+def _aprender_freio_reta(v0, d_freio):
+    # Espera as rodas pararem e aprende quanto o robô andou depois do freio,
+    # em "ms de velocidade" (média móvel lenta, com limites).
+    global _freio_reta_ms
+    cron = StopWatch()
+    while cron.time() < 250 and abs(db.state()[1]) > 5:
+        _checar()
+        wait(config.PERIODO_MS)
+    if v0 > 20:
+        est = abs(db.distance() - d_freio) / v0 * 1000.0
+        _freio_reta_ms = _clamp(0.7 * _freio_reta_ms + 0.3 * est, 0.0, 150.0)
 
 
 @_cronometrado("andar_ate_travar")
@@ -596,6 +787,8 @@ def girar(graus, vel=NORMAL):
     _rumo_alvo = _rumo_alvo + graus
     ok = _ir_ate_rumo(normalizar=False, vel=vel)
     db.stop()
+    if not ok and config.CORRECOES_RUMO:
+        _rumo_alvo = db.angle()         # não deixa o resto do giro pendente
     return ok
 
 
@@ -623,7 +816,12 @@ def virar_ate_travar(rumo, vel=LENTO, ms=250):
     global _rumo_alvo
     db.stop()
     _rumo_alvo = float(rumo)
-    erro = _erro_rumo()
+    # Com CORRECOES_RUMO o caminho é escolhido uma vez (alvo desembrulhado) e
+    # o erro deixa de ser normalizado no meio do giro.
+    norm = not config.CORRECOES_RUMO
+    if not norm:
+        _desembrulhar_alvo()
+    erro = _erro_rumo(norm)
     if abs(erro) <= config.GIRO_TOL_ENTRA:
         return False
     sentido = 1.0 if erro > 0 else -1.0
@@ -635,13 +833,13 @@ def virar_ate_travar(rumo, vel=LENTO, ms=250):
     travou = False
     while True:
         _checar()
-        if _giro_invertido(erro, True):
+        if _giro_invertido(erro, norm):
             break
-        if _erro_rumo() * sentido <= config.GIRO_TOL_SAI:    # chegou ou passou
+        if _erro_rumo(norm) * sentido <= config.GIRO_TOL_SAI:    # chegou ou passou
             break
         t = cron.time()
         if t > teto:
-            print("AVISO: virar_ate_travar no teto; erro=%.1f" % _erro_rumo())
+            print("AVISO: virar_ate_travar no teto; erro=%.1f" % _erro_rumo(norm))
             break
         if abs(db.angle() - ang_ref) >= 1.0:
             ang_ref = db.angle()
@@ -654,6 +852,9 @@ def virar_ate_travar(rumo, vel=LENTO, ms=250):
     db.stop()
     if travou:
         _rumo_alvo = db.angle()
+    elif config.CORRECOES_RUMO:
+        _creep(norm, tol_entra=config.GIRO_TOL_SAI)     # chegou: fecha o giro
+        db.stop()
     _atualizar_pose()
     return travou
 
@@ -738,6 +939,8 @@ def curva(raio_cm, graus, vel=NORMAL, parar=True):
     ok = _esperar_db(_teto(comprimento / abs(vel) * 1000 + abs(graus) / config.VEL_GIRO * 1000),
                      progresso=True)
     _rumo_alvo = _rumo_alvo + graus
+    if not ok and config.CORRECOES_RUMO:
+        _rumo_alvo = db.angle()         # curva abortada: não tenta completar
     if parar:
         ok = _creep() and ok
         db.stop()
@@ -863,27 +1066,51 @@ def alinhar_na_linha(vel=LENTO, max_cm=30, rumo=None, fino=True):
     giroscópio é reescrito com esse valor e o erro acumulado some.
     fino=True faz uma segunda passada lenta (recua 1,5 cm e volta ao preto).
     """
-    global _rumo_alvo
+    return _alinhar(vel, max_cm, rumo, fino, PRETO, "alinhar_na_linha")
+
+
+@_cronometrado("alinhar_na_base")
+def alinhar_na_base(rumo=0, vel=LENTO, max_cm=30, fino=True):
+    """Sai da base de FRENTE e esquadreja na MOLDURA verde da base.
+
+    Cada roda anda até o SEU sensor sair do branco da base (refletância abaixo
+    de config.LIMIAR_BORDA) e segura; com fino=True recua 1,5 cm e repete bem
+    devagar. Parado e perpendicular à moldura, o rumo vira `rumo` (padrão 0 =
+    a direção desta saída): o erro de quem soltou o robô na base some, e a
+    referência do rumo da mesa é renovada.
+    Custa ~1,5 a 3 s. O caminho dos sensores até a moldura tem de ser BRANCO
+    liso: o logo ou qualquer desenho escuro no meio engana o sensor.
+    """
+    return _alinhar(vel, max_cm, rumo, fino, BORDA, "alinhar_na_base")
+
+
+def _alinhar(vel, max_cm, rumo, fino, cor_alvo, nome):
+    global _rumo_alvo, _mesa_cron
     db.stop()
-    ok = _quadrar(vel, PRETO, max_cm)
+    ok = _quadrar(vel, cor_alvo, max_cm)
     if ok and fino:
         # Recuo FIXO, não "até o branco": atrás da faixa preta pode haver fundo
         # cinza/bege que nunca passa do LIMIAR_BRANCO.
         _aplicar_vel(LENTO)
         db.straight(-15, wait=False)
         _esperar_db(_teto(15.0 / LENTO * 1000))
-        ok = _quadrar(abs(vel) / 3.0, PRETO, 4)
+        # A passada fina define o rumo: a cada laço de 10 ms a roda anda
+        # vel x 10 ms; a 25 mm/s são 0,25 mm (~0,2 grau entre os sensores).
+        lenta = config.ALINHAR_VEL_FINA if config.CORRECOES_RUMO else abs(vel) / 3.0
+        ok = _quadrar(lenta, cor_alvo, 4)
     _roda_dir.hold()
     _roda_esq.hold()
     _atualizar_pose()
     if not ok:
-        print("AVISO: alinhar_na_linha nao achou a linha em %d cm" % max_cm)
+        print("AVISO: %s nao achou a linha em %d cm" % (nome, max_cm))
         return False
     if rumo is not None:
         # db.reset e não hub.imu.reset_heading: com use_gyro, o reset do heading
         # levanta OSError desde o Pybricks 3.6 (lição do Baymax).
         db.reset(distance=db.distance(), angle=rumo)
         _rumo_alvo = float(rumo)
+        if _mesa_cron is not None:
+            _mesa_cron = StopWatch()        # o rumo da mesa acabou de ser reancorado
     else:
         _rumo_alvo = db.angle()
     db.stop()
@@ -902,8 +1129,13 @@ def _seguir(sensor, borda, vel, kp, kd, max_cm, parar_quando):
     cron = StopWatch()
     teto = _teto(max_cm * 10.0 / abs(vel) * 1000)
     chegou = False
+    rumos = []                  # últimas leituras de rumo (média no fim)
     while True:
         _checar()
+        if config.CORRECOES_RUMO:
+            rumos.append(db.angle())
+            if len(rumos) > 20:
+                rumos.pop(0)
         if parar_quando is not None and parar_quando():
             chegou = True
             break
@@ -920,8 +1152,12 @@ def _seguir(sensor, borda, vel, kp, kd, max_cm, parar_quando):
         wait(config.PERIODO_MS)
     db.brake()
     _atualizar_pose()
-    # Depois de seguir a linha, o rumo desejado passa a ser o da linha.
-    _rumo_alvo = db.angle()
+    # Depois de seguir a linha, o rumo desejado passa a ser o da linha: a MÉDIA
+    # dos últimos ~200 ms, não uma leitura no meio da oscilação do PD.
+    if rumos:
+        _rumo_alvo = sum(rumos) / len(rumos)
+    else:
+        _rumo_alvo = db.angle()
     return chegou
 
 
@@ -949,16 +1185,94 @@ def seguir_linha_ate_cruzamento(sensor=DIR, borda=ESQ, vel=config.SEGUIR_VEL,
 # ===================================================================================
 # POSIÇÃO E RUMO
 # ===================================================================================
+def _norm180(a):
+    while a > 180.0:
+        a -= 360.0
+    while a <= -180.0:
+        a += 360.0
+    return a
+
+
+def _mesa_valida():
+    return (_mesa_cron is not None
+            and _mesa_cron.time() < config.LARGADA_REF_MAX_S * 1000)
+
+
+def rumo_mesa():
+    """Rumo do robô na MESA (graus): 0 = a direção fixada na 1ª saída ou na
+    rotina Z. None se ainda não há referência."""
+    if _mesa_cron is None:
+        return None
+    return db.angle() + _nominal
+
+
+def desvio_largada(nominal=None):
+    """(desvio, nominal) do robô parado na base: quanto ele está torto em
+    relação à direção nominal da saída (graus). `nominal` None = o múltiplo de
+    config.LARGADA_PASSO mais perto. None se não há referência da mesa válida."""
+    if not _mesa_valida():
+        return None
+    h = db.angle() + _nominal
+    if nominal is None:
+        n = round(h / config.LARGADA_PASSO) * config.LARGADA_PASSO
+    else:
+        n = float(nominal)
+    return _norm180(h - n), n
+
+
+def definir_mesa(nominal=0):
+    """O robô parado aponta EXATAMENTE para a direção `nominal` da mesa (ex.: no
+    gabarito). A partir daqui as largadas são medidas contra isso."""
+    global _nominal, _mesa_cron
+    _nominal = float(nominal) - db.angle()
+    _mesa_cron = StopWatch()
+
+
 def zerar_rumo():
-    """O rumo atual vira 0 e a posição volta a (0, 0). O menu chama no início
-    de cada saída."""
-    global _rumo_alvo, _x, _y, _dist_ant
+    """O rumo atual vira 0 e a posição volta a (0, 0)."""
+    global _rumo_alvo, _x, _y, _dist_ant, _nominal
     db.stop()
+    _nominal = _nominal + db.angle()        # o rumo da MESA continua o mesmo
     db.reset(distance=0, angle=0)
     _rumo_alvo = 0.0
     _x = 0.0
     _y = 0.0
     _dist_ant = 0.0
+
+
+def largar(nominal=None):
+    """Começo de uma saída (o menu chama): rumo 0 = direção da saída e
+    posição (0, 0).
+
+    Com config.LARGADA_COMPENSADA e a referência da mesa válida, o rumo inicial
+    NÃO é zero: é o quanto o robô foi solto torto em relação à direção nominal
+    (`nominal`, ou o múltiplo de LARGADA_PASSO mais perto). O 1º movimento
+    corrige. Sem referência (1ª saída), esta largada vira a referência.
+    """
+    global _nominal, _mesa_cron
+    h = db.angle() + _nominal               # rumo na mesa, antes de zerar
+    r = desvio_largada(nominal) if config.LARGADA_COMPENSADA else None
+    zerar_rumo()
+    if not config.LARGADA_COMPENSADA:
+        return
+    if r is None:
+        # 1ª saída (ou referência velha): esta largada define a mesa.
+        if _mesa_cron is None or nominal is not None:
+            _nominal = 0.0 if nominal is None else float(nominal)
+        else:
+            # referência velha: ainda serve para saber a direção nominal
+            _nominal = round(h / config.LARGADA_PASSO) * config.LARGADA_PASSO
+        _mesa_cron = StopWatch()
+        print("Largada: referencia da mesa fixada (direcao %d)" % _nominal)
+    elif abs(r[0]) > config.LARGADA_MAX_DESVIO:
+        # Torto demais para ser erro de mão: saída diagonal não declarada.
+        # Rumo 0 = para onde aponta, e a mesa continua valendo.
+        _nominal = h
+        print("AVISO: largada %.1f graus fora de %d: sem compensar" % (r[0], r[1]))
+    else:
+        db.reset(distance=0, angle=r[0])
+        _nominal = r[1]
+        print("Largada: %+.1f graus da direcao %d (compensado)" % (r[0], r[1]))
 
 
 def zerar_posicao():

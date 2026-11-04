@@ -119,11 +119,86 @@ CREEP_GANHO = 3.0       # graus/s de guinada por grau de erro
 CREEP_TAXA_MIN = 15     # graus/s: abaixo disto o robô não sai do lugar
 CREEP_TAXA_MAX = 60     # graus/s
 
+# --- Precisão do rumo (branch giroscopio-fino; ver docs/giroscopio.md) -------
+# Cada chave abaixo, com False, volta EXATAMENTE ao comportamento anterior.
+#
+# GIRO_FINO: o giro termina com FREIO (db.brake), não com coast, e depois,
+# com o robô PARADO, mede o erro de verdade e corrige com pulsos curtos nos
+# dois sentidos até GIRO_TOL_FINAL. Aprende sozinho quanto o robô ainda gira
+# depois do freio e freia antes. Motivo (pbio control.c): com o controle
+# ativo, um db.drive novo continua da REFERÊNCIA antiga, e o atraso acumulado
+# no giro grosso virava 1 a 6 graus de passada depois do creep.
+GIRO_FINO = True
+GIRO_TOL_FINAL = 0.5        # graus
+FINO_TENTATIVAS = 4         # pulsos de correção, no máximo
+FINO_TETO_MS = 1500         # o ajuste fino nunca passa disto
+FINO_PARADO = 3.0           # graus/s: abaixo disto o robô parou de girar
+FINO_FREIO_MS = 30          # palpite inicial do tempo de freio (ele aprende)
+
+# ANDAR_NO_RUMO: andar() anda pelo andar_no_rumo() no rumo DESEJADO. O
+# db.straight segurava o rumo MEDIDO no começo da reta (até 2 graus errado,
+# ~35 mm em 1 m) e dava a reta por concluída até ~13 mm antes do fim.
+ANDAR_NO_RUMO = True
+# RETA_PREVE_FREIO: andar_no_rumo (e andar) freia quando o que falta é o que o
+# robô ainda anda depois do freio (velocidade x tempo de freio, aprendido a
+# cada reta). Sem isto a reta passava ~4 mm do ponto (simulador).
+RETA_PREVE_FREIO = True
+RETA_FREIO_MS = 25          # palpite inicial (ele aprende)
+# RETA_LIMITE_RODA: nas retas com correção de rumo, a roda mais rápida nunca
+# passa disto (mm/s). O motor grande dá ~415-510 mm/s (conforme a bateria);
+# em RAPIDO (450) a roda saturava e a reta entortava sem conseguir corrigir.
+# 0 = sem limite.
+RETA_LIMITE_RODA = 400
+
+# TOLERANCIAS_DB: aperta o "concluído" do DriveBase (curva, sacudir,
+# rotinas). O padrão do pbio para roda 56 / bitola 80 é ~18 graus e ~13 mm:
+# era o "db.turn parava 15 graus antes". Se o robô parar perto do alvo sem
+# chegar à tolerância (atrito), o movimento é aceito parado depois do tempo
+# teórico, em vez de esperar o teto.
+TOLERANCIAS_DB = True
+TOL_DB_RUMO = 2.0           # graus
+TOL_DB_RUMO_VEL = 15        # graus/s
+TOL_DB_DIST = 3             # mm
+TOL_DB_DIST_VEL = 20        # mm/s
+
+# CORRECOES_RUMO:
+#  - virar_para(180) a partir de 0 podia NÃO GIRAR (o ruído levava o erro de
+#    +180 a -179,99 e o giro achava que já tinha passado): o caminho agora é
+#    escolhido uma vez só, no começo do giro;
+#  - girar/curva que abortam não deixam o rumo desejado adiantado;
+#  - virar_ate_travar fecha o giro quando não travou;
+#  - seguir_linha termina com o rumo MÉDIO dos últimos ~200 ms;
+#  - a 2ª passada de alinhar_na_linha é mais lenta (ALINHAR_VEL_FINA).
+CORRECOES_RUMO = True
+ALINHAR_VEL_FINA = 25       # mm/s na passada fina dos alinhamentos
+
+# --- Largada: o rumo da MESA -------------------------------------------------
+# LARGADA_COMPENSADA: o rumo 3D do firmware 4.x acompanha o robô quando ele é
+# levantado e posto de volta na base. A 1ª saída (ou a rotina Z) fixa a
+# direção da mesa; nas outras, o erro com que o robô foi SOLTO é medido e vira
+# o rumo inicial: o robô sabe que saiu 2 graus torto e corrige no 1º
+# movimento. A direção nominal da saída é o múltiplo de LARGADA_PASSO mais
+# perto (0, 90, 180, -90), ou o 3º item da tupla em saidas.SAIDAS.
+LARGADA_COMPENSADA = True
+LARGADA_PASSO = 90.0
+LARGADA_MAX_DESVIO = 8.0    # graus: mais torto que isto não compensa (avisa)
+LARGADA_REF_MAX_S = 600     # referência da mesa mais velha que isto não vale
+# Mira no menu: com uma saída selecionada, a luz mostra o desvio da largada.
+# Verde: abaixo de LARGADA_MIRA_OK com o giroscópio parado (bias recém-
+# reestimado); amarela: abaixo de LARGADA_MIRA_PERTO; vermelha: acima.
+LARGADA_MIRA = True
+LARGADA_MIRA_OK = 0.5
+LARGADA_MIRA_PERTO = 2.0
+
+# alinhar_na_base(): esquadreja na MOLDURA da base. Refletância normalizada
+# (0 preto .. 100 branco) abaixo da qual o sensor saiu do branco da base.
+LIMIAR_BORDA = 60
+
 # --- andar_no_rumo: reta corrigindo para um rumo absoluto --------------------
 # Enquanto anda, a guinada é CREEP_GANHO x erro (saturada em CREEP_TAXA_MAX).
 # Se o robô começar mais torto que RUMO_VIRAR_ANTES, vira no lugar antes de
-# sair (corrigir só andando desviaria muito para o lado).
-RUMO_VIRAR_ANTES = 20.0 # graus
+# sair (corrigir só andando desviaria muito para o lado: com 20 graus, ~35 mm).
+RUMO_VIRAR_ANTES = 8.0  # graus (era 20)
 RUMO_VEL_FINAL = 40     # mm/s: velocidade mínima da rampa de frenagem
 
 # --- sacudir: vai e vem curtinho para assentar/soltar/encaixar ---------------
