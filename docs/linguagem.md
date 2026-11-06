@@ -32,10 +32,13 @@ O **botão central durante uma saída** aborta tudo e volta ao menu.
 | `andar_ate_travar(max_cm, vel=LENTO, ms=250)` | Anda no rumo atual até encostar em algo (as rodas não avançam 3 mm em `ms` ms), no máximo `max_cm` (negativo = de ré). Corrige a direção andando. Devolve `True` se travou, `False` se chegou ao limite sem encostar; o log mostra `encostou em X cm` ou `AVISO: ... chegou a X cm sem encostar`. Roda que patina conta como avanço: encoste devagar. |
 | `virar_ate_travar(rumo, vel=LENTO, ms=250)` | Como `virar_para`, mas para se o giro travar (o rumo não muda 1° em `ms` ms). O rumo onde parou vira o rumo desejado. Devolve `True` se travou. |
 | `sacudir(ms, cm=1, graus=6)` | Sacode por `ms` milissegundos: vai e volta `cm` para a frente e para trás e vira `graus` para cada lado, em torno do ponto e do rumo onde começou, e no fim volta para eles. Para assentar uma peça, soltar um anexo enroscado ou encaixar algo. `cm=0` só vira; `graus=0` só vai e volta. |
-| `curva(raio_cm, graus, vel=NORMAL, parar=True)` | Arco; o rumo muda `graus` (+ = direita). `parar=False` emenda no próximo movimento sem frear: `andar`/`curva`/`andar` com `parar=False` viram um caminho contínuo. |
+| `curva(raio_cm, graus, vel=NORMAL, parar=True)` | Arco; o rumo muda `graus` (+ = direita). `parar=False` emenda no próximo movimento sem frear: `andar`/`curva`/`andar` com `parar=False` viram um caminho contínuo. Parada, alinha o rumo antes de sair; emendada (o robô ainda andando), não: entra na curva na hora, e o erro que sobrar a reta seguinte corrige andando. |
 | `ir_para(x, y, vel=NORMAL, de_re=False)` | Vira e anda até o ponto, usando a posição estimada. |
 | `voltar_base(vel=RAPIDO, de_re=False)` | `ir_para(0, 0)`. |
 | `parar_tudo()` | Para a tração e os anexos. |
+| `usar_giroscopio(ligado=True)` | `usar_giroscopio(False)` tira o giroscópio do rumo daqui em diante: retas, giros e posição passam a vir só das rodas. Vale até o fim da saída (o menu religa sozinho) ou até `usar_giroscopio(True)`; ao religar, o rumo volta a ser o do giroscópio e a referência da mesa continua valendo. |
+| `giro_fino(ligado=True)` | `giro_fino(False)` faz os giros terminarem pelo método antigo (creep, sem o ajuste fino parado). Vale até o fim da saída. |
+| `usar_creep(ligado=True)` | `usar_creep(False)` tira todo ajuste de rumo com o robô parado, seja creep ou ajuste fino: o giro é só a fase grossa e o erro que sobrar a reta seguinte corrige andando. Vale até o fim da saída ou até `usar_creep(True)`. |
 
 Velocidades (ajustáveis no `config.py`):
 
@@ -130,7 +133,7 @@ Comandos em **centímetros** para o elevador de fuso e a garra de pinça (`model
 | `abrir(cm=None, vel=NORMAL, forca=30, esperar=True)` | Abre `cm`. Sem `cm`, abre até o batente e faz dali o 0. |
 | `fechar(cm=None, vel=NORMAL, forca=40, esperar=True)` | Fecha `cm` por posição. Sem `cm`, fecha até travar na peça (ou no fim do curso) e segura: é o jeito de **pegar**. |
 | `apertar(forca=25, vel=LENTO, esperar=True)` | Fecha e **fica apertando**: se a peça escorregar ou ceder, a garra fecha mais sozinha, sempre com no máximo `forca`%. Só para com outro comando de garra (`abrir`, `fechar`, `garra_ir_para`, `anexo1_...`) ou no fim da saída. `esperar=True` devolve quando encosta na peça; o aperto continua. |
-| `garra_ir_para(cm, vel=NORMAL, forca=40, esperar=True)` | Deixa `cm` entre os dedos (de 3 a 6). |
+| `garra_ir_para(cm, vel=NORMAL, forca=40, esperar=True)` | Deixa `cm` entre os dedos (de 4 a 7). |
 | `altura_elevador()` · `abertura_garra()` | Altura do carro e distância entre os dedos, em cm. |
 
 - **`vel`** é `LENTO`, `NORMAL` ou `RAPIDO` (traduzidos para graus/s de motor no `config.py`) ou um número em graus/s.
@@ -155,6 +158,7 @@ abrir(1)                              # solta (encerra o aperto)
 | Comando | O que faz |
 |---|---|
 | `esperar(ms)` | Pausa que continua respondendo ao abortar. |
+| `esperar()` | Gatilho: segura a saída até um novo toque no central, que aqui continua em vez de abortar (quem encerra é o botão Bluetooth). |
 | `esperar_botao()` | Espera ◀ ou ▶ (o central aborta). |
 | `bipe(freq=600, ms=100)` · `mostrar(valor)` · `luz(Color.GREEN)` | Som, matriz e luz. |
 | `tempo_partida()` · `tempo_restante()` | Cronômetro de 120 s, que começa na 1ª saída. |

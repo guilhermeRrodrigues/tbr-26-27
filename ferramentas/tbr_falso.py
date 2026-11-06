@@ -119,8 +119,24 @@ def _normalizar(graus):
     return graus
 
 
+def _conferir_vel(nome, vel, parar):
+    # Compila e roda no hub, mas o robô não faz o que a equipe escreveu. Só o
+    # `tbr verificar` confere: o hub/tbr.py continua aceitando.
+    # Casos reais: andar_no_rumo(24, 358,5, LENTO) virou vel=5 e parar=150;
+    # andar_no_rumo(32, RAPIDO, -21) virou rumo=450 e vel=-21.
+    dica = " (vírgula em vez de ponto, ou argumentos trocados?)"
+    if not isinstance(parar, bool):
+        raise ValueError("%s: parar=%r não é True/False%s" % (nome, parar, dica))
+    if vel < 0:
+        raise ValueError("%s: vel=%r negativa; a ré vem do sinal de cm%s" % (nome, vel, dica))
+    if vel < _C["RUMO_VEL_FINAL"]:
+        raise ValueError("%s: vel=%r mm/s é baixa demais (mínimo %d)%s"
+                         % (nome, vel, _C["RUMO_VEL_FINAL"], dica))
+
+
 # --- Movimento -----------------------------------------------------------------
 def andar(cm, vel=NORMAL, parar=True):
+    _conferir_vel("andar", vel, parar)
     _avancar(cm)
     _passo("andar(%g)" % cm, _t_reta(cm, vel) - (0 if parar else _ASSENTA_S))
     return True
@@ -130,6 +146,7 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     # Muito torto: vira no lugar antes. Pouco torto: corrige andando (aqui
     # aproximado como se já saísse no rumo certo).
     global _rumo
+    _conferir_vel("andar_no_rumo", vel, parar)
     delta = _normalizar(rumo - _rumo)
     t_giro = _t_giro(delta) if abs(delta) > _C["RUMO_VIRAR_ANTES"] else 0.0
     _rumo += delta
@@ -178,6 +195,7 @@ def sacudir(ms, cm=_C["SACUDIR_CM"], graus=_C["SACUDIR_GRAUS"]):
 
 def curva(raio_cm, graus, vel=NORMAL, parar=True):
     global _x, _y, _rumo
+    _conferir_vel("curva", vel, parar)
     # Arco: o centro fica a `raio` para o lado da curva.
     h0 = math.radians(_rumo)
     sinal = 1.0 if graus >= 0 else -1.0
@@ -218,6 +236,21 @@ def voltar_base(vel=RAPIDO, de_re=False):
 
 def parar_tudo():
     pass
+
+
+def giro_fino(ligado=True):
+    # O simulador não modela o giro fino: só registra o passo.
+    _passo("giro_fino(%s)" % ligado, 0.0)
+
+
+def usar_creep(ligado=True):
+    # O simulador não modela o creep: só registra o passo.
+    _passo("usar_creep(%s)" % ligado, 0.0)
+
+
+def usar_giroscopio(ligado=True):
+    # O simulador não modela o giroscópio: só registra o passo.
+    _passo("usar_giroscopio(%s)" % ligado, 0.0)
 
 
 # --- Linhas ----------------------------------------------------------------------
@@ -481,8 +514,15 @@ def luz(c):
     pass
 
 
-def esperar(ms):
-    _passo("esperar(%d)" % ms, ms / 1000.0)
+def avisar_maker():
+    _passo("avisar_maker()", 0.0)
+
+
+def esperar(ms=None):
+    if ms is None:
+        _passo("esperar()", 1.0)
+    else:
+        _passo("esperar(%d)" % ms, ms / 1000.0)
 
 
 def esperar_botao():

@@ -18,14 +18,25 @@ from tbr import *
 from missoes import *
 
 
+def saida_6():
+    giro_fino(False)    # esta saída não usa o ajuste fino...
+    usar_creep(False)   # ...nem o creep: o rumo se corrige andando
+    m6_carrinho()
+
+
+def saida_7():
+    usar_creep(False)   # sem ajuste de rumo parado, creep nem fino
+    m7_bandeira()
+
+
 SAIDAS = (
     ("M1", m1_gangorra),
     ("M2", m2_blocos),
     ("M3", m3_rampa),
     ("M4", m4_epis),
     ("M5", m5_peca),
-    ("M6", m6_carrinho),
-    ("M7", m7_bandeira),
+    ("M6", saida_6),
+    ("M7", saida_7),
     ("M8", m8_maker),
     ("M9", m9_patio),
 )

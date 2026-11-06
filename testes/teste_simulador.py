@@ -17,6 +17,27 @@ def teste_todas_as_saidas_rodam():
         assert erro is None, "%s: %s" % (nome, erro)
 
 
+@pytest.mark.parametrize("chamada", [
+    lambda: t.andar_no_rumo(24, 358, 5, t.LENTO),   # a M2 com 358,5 em vez de 358.5
+    lambda: t.andar_no_rumo(32, t.RAPIDO, -21),     # a M2 com rumo e vel trocados
+    lambda: t.andar(10, 5),
+    lambda: t.andar(10, t.NORMAL, 150),
+    lambda: t.curva(30, 90, t.NORMAL, 150),
+    lambda: t.curva(30, 90, -100),
+])
+def teste_argumento_impossivel_e_recusado(chamada):
+    # Compila e roda no hub, mas o robô não faz o que a equipe escreveu.
+    with pytest.raises(ValueError, match="vírgula"):
+        chamada()
+
+
+def teste_velocidades_validas_passam():
+    t.andar_no_rumo(24, 358.5, t.LENTO)
+    t.andar_no_rumo(-7, 0, parar=False)
+    t.andar(10, 40)
+    t.curva(30, 90, t.RAPIDO, parar=False)
+
+
 def teste_andar_para_leste():
     t.andar(30)
     x, y, r = t.posicao()

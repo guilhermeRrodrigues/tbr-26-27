@@ -35,10 +35,14 @@ Tudo está **ligado**. Cada mudança tem uma chave em `hub/config.py` que volta 
 
 | Como larga | `LARGADA_SIGMA_MAO` |
 |---|---|
-| Com o gabarito | **0,3** (padrão) |
+| Com gabarito impresso | **0,15** (padrão) |
 | A olho | **1,5** |
 
 O valor diz ao filtro o quanto confiar na mão contra o giroscópio. Errar para menos não quebra nada, mas a compensação rende menos (ver a tabela da largada).
+
+O valor vale para todas as saídas: uma saída largada a olho precisa de 1,5.
+
+**Por que 0,15 e não 0,3:** na saída 6 de 05/11, largada com gabarito, o `σ = 1,5` fez o robô corrigir de +0,8° a −1,1° um erro do manuseio, e ele errou o alvo para os dois lados. Recalculando aquele log, a pior correção daria 12,9 mm no alvo com 1,5, 5,2 mm com 0,3 e 2,1 mm com 0,15. No simulador, com gabarito, o p95 lateral a 1 m foi de 19,4, 7,9 e 7,3 mm. A luz de mira fica verde quase sempre com 0,15, mas o aviso acima de 8° continua.
 
 ## Resultados do gêmeo digital
 
@@ -161,10 +165,12 @@ Todas em `hub/config.py`. `False` volta ao comportamento de antes desta branch.
 | `LARGADA_COMPENSADA` | a compensação do `largar()` (volta a zerar o rumo a cada saída) | a luz fica vermelha sem motivo; as saídas viradas saem tortas |
 | `LARGADA_MIRA` | a luz de mira (fica sempre verde) | a luz confunde a equipe |
 | `GIRO_FINO` | o giro fino (volta ao creep antigo) | giros lentos demais, ou o robô "tremendo" no fim |
+| `CREEP` | todo ajuste de rumo parado, creep e fino (o erro se corrige andando) | a saída perde tempo parada alinhando; para uma saída só, `usar_creep(False)` |
 | `TOLERANCIAS_DB` | as tolerâncias apertadas do DriveBase | `andar`/`curva` travam até o watchdog |
 | `ANDAR_NO_RUMO` | `andar()` pelo rumo planejado (volta ao `db.straight`) | distâncias mudaram e não há tempo de reajustar |
 | `RETA_PREVE_FREIO` | o freio previsto nas retas | retas param curtas |
 | `CORRECOES_RUMO` | desembrulhar o alvo e as correções de abort, `virar_ate_travar` e `_seguir` | algum giro vai para o lado inesperado |
+| `EMENDA_SEM_AJUSTE` | a emenda direta: `curva` volta a ajustar o rumo ainda andando e `andar_no_rumo` volta a poder girar no lugar | só para medir se uma distância acertada antes de 05/11 embutia o trecho extra. O método antigo é inconsistente: não deixe `False` na prova |
 
 Os valores numéricos de antes:
 - `RUMO_VIRAR_ANTES = 20`;

@@ -58,6 +58,10 @@ for _letra, _nome, _funcao in rotinas_cal.ROTINAS:
     ITENS.append((_letra, _nome, _funcao, False, None))
 
 
+_GIRO_FINO_PADRAO = config.GIRO_FINO
+_CREEP_PADRAO = config.CREEP
+
+
 def _soltar():
     while tbr.hub.buttons.pressed():
         wait(10)
@@ -110,6 +114,9 @@ def _executar(item):
         _soltar()
     finally:
         tbr.parar_tudo()
+        config.GIRO_FINO = _GIRO_FINO_PADRAO    # giro_fino() vale só na saída
+        config.CREEP = _CREEP_PADRAO            # usar_creep() também
+        tbr.usar_giroscopio(True)               # e usar_giroscopio() também
     print("<<< %s levou %.1f s | partida %.1f s | restam %.1f s"
           % (rotulo, cron.time() / 1000.0, tbr.tempo_partida(), tbr.tempo_restante()))
     return completa

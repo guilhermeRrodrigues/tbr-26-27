@@ -1,0 +1,29 @@
+OK: hub/ compila; programa empacotado com 35630 bytes.
+$ /Users/guilherme/dev/tbr-26-27/.venv/bin/python -m pybricksdev run ble --start --wait /Users/guilherme/dev/tbr-26-27/hub/main.py
+Searching for any hub with Pybricks service...
+COOPBOT TBR2026 menu
+DIAG firmware ('primehub', '4.1.0', 'ci-release-112-v4.1.0 on 2026-10-12')
+DIAG sentidos roda dir=Direction.CLOCKWISE esq=Direction.COUNTERCLOCKWISE
+DIAG calibracao GRAVADA: roda=56.00 bitola=98.92
+DIAG cor dir preto=10 branco=49 | esq preto=10 branco=41
+DIAG imu (2.0, 2500.0, (0.04478991, -1.5015125, 0.065882352), (360.0, 360.0, 360.0), (9806.65, -9806.65, 9806.65, -9806.65, 9806.65, -9806.65), 362.976)
+Largada: referencia da mesa fixada (direcao 0)
+>>> 1 TL (partida em 0.0 s)
+T   3715 ms  andar_no_rumo(100, 0)
+<<< 1 levou 3.7 s | partida 3.7 s | restam 116.3 s
+Largada: +3.5 graus da direcao 0 (compensado, peso do giroscopio 0.49)
+>>> 1 TL (partida em 9.3 s)
+T   3709 ms  andar_no_rumo(100, 0)
+<<< 1 levou 3.7 s | partida 13.0 s | restam 107.0 s
+AVISO: largada -9.1 graus fora de 0: sem compensar
+>>> 1 TL (partida em 24.6 s)
+T   3733 ms  andar_no_rumo(100, 0)
+<<< 1 levou 3.7 s | partida 28.3 s | restam 91.7 s
+Largada: -0.5 graus da direcao 0 (compensado, peso do giroscopio 0.55)
+>>> 1 TL (partida em 34.6 s)
+T   3724 ms  andar_no_rumo(100, 0)
+<<< 1 levou 3.7 s | partida 38.3 s | restam 81.7 s
+Largada: +0.3 graus da direcao 0 (compensado, peso do giroscopio 0.64)
+>>> 1 TL (partida em 49.1 s)
+T   3705 ms  andar_no_rumo(100, 0)
+<<< 1 levou 3.7 s | partida 52.8 s | restam 67.2 s

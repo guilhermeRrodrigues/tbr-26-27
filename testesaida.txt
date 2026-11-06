@@ -1,0 +1,5 @@
+OK: hub/ compila; programa empacotado com 35563 bytes.
+$ /Users/guilherme/dev/tbr-26-27/.venv/bin/python -m pybricksdev run ble --start --wait /Users/guilherme/dev/tbr-26-27/hub/main.py
+Searching for any hub with Pybricks service...
+Largada: referencia da mesa fixada (direcao 0)
+>>> 1 M1 (partida em 0.0 s)

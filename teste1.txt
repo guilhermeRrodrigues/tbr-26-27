@@ -1,0 +1,21 @@
+OK: hub/ compila; programa empacotado com 35563 bytes.
+$ /Users/guilherme/dev/tbr-26-27/.venv/bin/python -m pybricksdev run ble --start --wait /Users/guilherme/dev/tbr-26-27/hub/main.py
+Searching for any hub with Pybricks service...
+COOPBOT TBR2026 menu
+DIAG firmware ('primehub', '4.1.0', 'ci-release-112-v4.1.0 on 2026-10-12')
+DIAG sentidos roda dir=Direction.CLOCKWISE esq=Direction.COUNTERCLOCKWISE
+DIAG calibracao GRAVADA: roda=56.00 bitola=98.92
+DIAG cor dir preto=10 branco=49 | esq preto=10 branco=41
+DIAG imu (2.0, 2500.0, (0.04478991, -1.5015125, 0.065882352), (360.0, 360.0, 360.0), (9806.65, -9806.65, 9806.65, -9806.65, 9806.65, -9806.65), 363.09628)
+>>> G Giro (partida em 0.0 s)
+=== Giro ===
+Robo APOIADO no tapete, alinhado a uma marca (ex.: no gabarito).
+Central para INICIAR.
+1) Gire 5 voltas no sentido HORARIO, sempre apoiado e sem pressa,
+   pare na marca e aperte o central.
+2) Agora 5 voltas ANTI-HORARIO, de volta a marca, e central.
+Horario 362.76 | anti-horario 363.19 | media 362.98 graus brutos por volta
+Diferenca entre os sentidos: 0.12%
+IMU settings: (2.0, 2500.0, (0.04478991, -1.5015125, 0.065882352), (360.0, 360.0, 360.0), (9806.65, -9806.65, 9806.65, -9806.65, 9806.65, -9806.65), 362.976)
+Gravado. Reinicie o programa para usar os novos valores.
+<<< G levou 102.8 s | partida 0.0 s | restam 120.0 s

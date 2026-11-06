@@ -1,0 +1,3 @@
+OK: hub/ compila; programa empacotado com 35630 bytes.
+$ /Users/guilherme/dev/tbr-26-27/.venv/bin/python -m pybricksdev run ble --start --wait /Users/guilherme/dev/tbr-26-27/hub/main.py
+Searching for any hub with Pybricks service...

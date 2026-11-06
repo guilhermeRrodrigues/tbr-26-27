@@ -180,11 +180,16 @@ def _atualizar_pose():
         _y -= dd * sin(h) / 10.0      # rumo horário-positivo => y para a esquerda
 
 
+def _manter():
+    # Pose em dia e anexos vigiados: o que não pode parar nem numa pausa.
+    _atualizar_pose()
+    _vigiar_anexos()
+
+
 def _checar():
     # Chamado em TODO laço de controle: abortar, manter a pose em dia e vigiar
     # os anexos que se mexem em paralelo.
-    _atualizar_pose()
-    _vigiar_anexos()
+    _manter()
     if Button.CENTER in hub.buttons.pressed():
         parar_tudo()
         raise SaidaAbortada()
@@ -287,6 +292,8 @@ def _creep(normalizar=True, tol_entra=None, tol_sai=None):
     # (db.drive), não por posição (db.turn), porque db.turn de 1-2 graus cai na
     # zona morta do controlador. Para quando chega ou quando PASSA do alvo
     # (nunca fica oscilando de um lado para o outro).
+    if not config.CREEP:
+        return True
     if config.GIRO_FINO:
         return _fino(normalizar, tol_entra)
     if tol_entra is None:
@@ -381,6 +388,7 @@ def _fino(normalizar=True, tol_entra=None):
         pulsos += 1
         sentido = 1.0 if erro > 0 else -1.0
         stall_desde = None
+        t_pulso = cron.time()
         while True:
             _checar()
             if _giro_invertido(erro_inicial, normalizar):
@@ -413,6 +421,11 @@ def _fino(normalizar=True, tol_entra=None):
             # quanto girou depois do freio, em "ms de guinada": aprende devagar
             est = abs(db.angle() - a0) / w0 * 1000.0
             _freio_ms = _clamp(0.7 * _freio_ms + 0.3 * est, 5.0, 150.0)
+        if config.DIAG_GIRO:
+            # Separa atrito (pulso longo, chega perto) de encostado em algo
+            # (pulso longo, erro não muda) e de passada (erro troca de sinal).
+            print("DIAG fino pulso %d: erro %.2f -> %.2f em %d ms, guinada no freio %d"
+                  % (pulsos, erro, _erro_rumo(normalizar), cron.time() - t_pulso, w0))
     db.stop()
     _atualizar_pose()
     return ok
@@ -479,14 +492,16 @@ def _ir_ate_rumo(normalizar=True, vel=NORMAL):
     if config.CORRECOES_RUMO and normalizar:
         _desembrulhar_alvo()
         normalizar = False
-    if config.GIRO_FINO:
+    if config.GIRO_FINO and config.CREEP:
         return _ir_ate_rumo_fino(normalizar, vel)
     erro = _erro_rumo(normalizar)
     ok = True
     cron = StopWatch()
     t_grosso = 0
     sobra = erro
-    if abs(erro) > config.GIRO_GROSSO_MIN:
+    # Sem creep, o grosso faz o giro inteiro: abaixo de GIRO_GROSSO_MIN era o
+    # creep que girava, e o robô simplesmente não viraria.
+    if abs(erro) > config.GIRO_GROSSO_MIN or not config.CREEP:
         taxa = _taxa_giro(vel)
         _aplicar_vel(NORMAL, taxa)
         if config.GIRO_POR_VELOCIDADE:
@@ -581,6 +596,16 @@ def _graus_motor(vel_mm):
 _cron_nivel = 0
 
 
+def _andando():
+    # O robô ainda anda: veio emendado de um movimento com parar=False.
+    return abs(db.state()[1]) >= 5
+
+
+def _emendado():
+    # Emenda sem frear: o movimento novo segue direto, sem ajustar o rumo.
+    return config.EMENDA_SEM_AJUSTE and _andando()
+
+
 def _fmt(v):
     if isinstance(v, float):
         return "%g" % v
@@ -604,7 +629,10 @@ def _cronometrado(nome):
                     partes = [_fmt(a) for a in args]
                     for k in kw:
                         partes.append("%s=%s" % (k, _fmt(kw[k])))
-                    print("T %6d ms  %s(%s)" % (cron.time(), nome, ", ".join(partes)))
+                    linha = "T %6d ms  %s(%s)" % (cron.time(), nome, ", ".join(partes))
+                    if config.DIAG_POSE:
+                        linha += "  x=%.1f y=%.1f rumo=%.1f erro=%.1f" % (posicao() + (_erro_rumo(),))
+                    print(linha)
         return w
     return envolver
 
@@ -646,7 +674,8 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     """
     global _rumo_alvo
     _rumo_alvo = float(rumo)
-    if abs(_erro_rumo()) > config.RUMO_VIRAR_ANTES:
+    # Emendada num movimento (parar=False), não gira no lugar: corrige andando.
+    if abs(_erro_rumo()) > config.RUMO_VIRAR_ANTES and not _emendado():
         if not _ir_ate_rumo(normalizar=True):
             db.stop()
             return False
@@ -707,8 +736,12 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
             _aprender_freio_reta(v0, d_freio)
         _atualizar_pose()
     if parar:
+        erro_fim = _erro_rumo()
+        cron_fim = StopWatch()
         ok = _creep() and ok
         db.stop()
+        if config.DIAG_POSE and cron_fim.time() > 50:
+            print("DIAG fim da reta: erro %.1f, ajuste %d ms" % (erro_fim, cron_fim.time()))
     return ok
 
 
@@ -736,7 +769,7 @@ def andar_ate_travar(max_cm, vel=LENTO, ms=250):
     avanço: encoste devagar (LENTO).
     Pode vir emendado num andar(..., RAPIDO, parar=False): chega rápido e só
     o fim é devagar (o robô freia de uma velocidade para a outra andando)."""
-    if abs(db.state()[1]) < 5:
+    if not _andando():
         _creep()                                 # parado: sai alinhado ao rumo
         _aplicar_vel(vel)                        # aceleração do db.drive
     # Emendado (já andando): sem creep, que giraria no lugar, e sem
@@ -947,7 +980,13 @@ def curva(raio_cm, graus, vel=NORMAL, parar=True):
     sequência andar/curva/andar com parar=False vira um caminho contínuo.
     """
     global _rumo_alvo
-    _creep()
+    if not _emendado():
+        # Parado: sai alinhado ao rumo. Emendada num andar(parar=False), NÃO:
+        # o ajuste de rumo esperava o robô parar de guinar (até 250 ms, com o
+        # robô andando reto no comando antigo) e, com mais de GIRO_TOL_ENTRA
+        # de erro, girava no lugar freando. A curva saía depois do ponto, umas
+        # vezes sim e outras não. O erro que sobrar a próxima reta corrige.
+        _creep()
     _aplicar_vel(vel)
     db.curve(raio_cm * 10, graus, then=Stop.HOLD if parar else Stop.NONE, wait=False)
     comprimento = abs(raio_cm * 10 * graus * pi / 180.0)
@@ -991,6 +1030,56 @@ def parar_tudo():
     _anexo2.stop()
     _tarefa[0] = None
     _tarefa[1] = None
+
+
+def usar_creep(ligado=True):
+    """Liga ou desliga o ajuste de rumo com o robô parado daqui em diante.
+
+    Desligado, os giros são só a fase grossa e nada alinha o rumo antes ou
+    depois das retas: o erro que sobrar a reta seguinte corrige andando.
+    Vale só para a saída em curso: no fim de cada saída (completa ou
+    abortada) o menu volta ao valor do config.py.
+    """
+    config.CREEP = ligado
+
+
+def giro_fino(ligado=True):
+    """Liga ou desliga o ajuste fino do giro (config.GIRO_FINO) daqui em diante.
+
+    Vale só para a saída em curso: no fim de cada saída (completa ou
+    abortada) o menu volta ao valor do config.py.
+    """
+    config.GIRO_FINO = ligado
+
+
+_giro_desligado = None      # (rumo, heading do IMU) no instante em que desligou
+
+
+def usar_giroscopio(ligado=True):
+    """Liga ou desliga o giroscópio no rumo do robô daqui em diante.
+
+    Desligado, o rumo (retas, giros, posição) vem só das rodas. Vale só para
+    a saída em curso: no fim de cada saída (completa ou abortada) o menu
+    religa. Dá para religar no meio da saída com usar_giroscopio(True): o
+    rumo volta a ser o do giroscópio, que continuou medindo o tempo todo.
+    """
+    global _giro_desligado
+    if (not ligado) == (_giro_desligado is not None):
+        return                                   # já está assim
+    d = db.distance()
+    if ligado:
+        # Rumo de quando desligou + o que o giroscópio viu girar desde então:
+        # a referência da mesa (rumo_mesa) continua valendo nas próximas saídas.
+        a0, h0 = _giro_desligado
+        a = a0 + hub.imu.heading() - h0
+        _giro_desligado = None
+        db.use_gyro(True)
+    else:
+        a = db.angle()
+        _giro_desligado = (a, hub.imu.heading())
+        db.use_gyro(False)
+    db.reset(distance=d, angle=a)                # o rumo segue de onde estava
+    _atualizar_pose()
 
 
 # ===================================================================================
@@ -1327,8 +1416,8 @@ def largar(nominal=None):
         _nominal = r[1]
         _mesa_cron = StopWatch()
         _mesa_var = var_fundida
-        print("Largada: %+.1f graus da direcao %d (compensado, peso do giroscopio %.2f)"
-              % (r[0], r[1], w))
+        print("Largada: %+.1f graus da direcao %d (compensado, giroscopio viu %+.1f, peso %.2f)"
+              % (r[0], r[1], r[0] / w if w > 0 else 0.0, w))
 
 
 def zerar_posicao():
@@ -1759,9 +1848,55 @@ def luz(c):
     hub.light.on(c)
 
 
+_radio = None
+
+
+def avisar_maker():
+    """Avisa o 2º hub (Dispositivo Maker) que os trabalhadores foram entregues.
+
+    Liga o broadcast BLE no canal MAKER_CANAL e segue na hora: o rádio continua
+    anunciando sozinho até o programa acabar. Só depois deste aviso o hub do
+    Maker (hub/maker.py) começa a olhar o ultrassônico. Uma falha do rádio só
+    é impressa: não aborta a saída.
+    """
+    global _radio
+    try:
+        if _radio is None:
+            from pybricks.messaging import BLERadio
+            _radio = BLERadio(broadcast_channel=config.MAKER_CANAL)
+        _radio.broadcast(config.MAKER_SINAL)
+        print("MAKER aviso enviado (canal %d)" % config.MAKER_CANAL)
+    except Exception as e:
+        print("MAKER aviso FALHOU: %s" % e)
+
+
+def _central_ficar(apertado, ms=0):
+    # Espera o central ficar nesse estado por ms seguidos, sem abortar.
+    cron = StopWatch()
+    while True:
+        if (Button.CENTER in hub.buttons.pressed()) != apertado:
+            cron.reset()
+        elif cron.time() >= ms:
+            return
+        _manter()
+        wait(config.PERIODO_MS)
+
+
 @_cronometrado("esperar")
-def esperar(ms):
-    """Pausa que continua respondendo ao botão de abortar."""
+def esperar(ms=None):
+    """esperar(ms): pausa que continua respondendo ao botão de abortar.
+
+    esperar(): gatilho. Segura a saída até um novo toque no botão central, que
+    aqui continua em vez de abortar (quem encerra é o botão Bluetooth). Basta
+    um toque rápido; o robô segue quando o dedo sai do botão.
+    """
+    if ms is None:
+        _central_ficar(False)       # o dedo que já estava lá não conta
+        _central_ficar(True)
+        # Voltar com o central apertado (ou repicando) abortaria a saída no
+        # próximo _checar().
+        _central_ficar(False, config.BOTAO_REPIQUE_MS)
+        return
     cron = StopWatch()
     while cron.time() < ms:
         _checar()

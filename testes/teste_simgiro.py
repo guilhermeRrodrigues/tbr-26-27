@@ -121,10 +121,56 @@ def teste_chaves_de_volta_rodam():
     # Desligar tudo volta ao comportamento antigo; tem de rodar sem exceção.
     velho = {"GIRO_FINO": False, "ANDAR_NO_RUMO": False, "RETA_PREVE_FREIO": False,
              "TOLERANCIAS_DB": False, "CORRECOES_RUMO": False,
+             "EMENDA_SEM_AJUSTE": False,
              "LARGADA_COMPENSADA": False, "RUMO_VIRAR_ANTES": 20.0}
     for nome in ("giro", "reta", "largada"):
         r = cenarios.CENARIOS[nome](7, velho)
         assert r
+
+
+def _x_apos_curva_emendada(emenda):
+    # FINO_PARADO 0: o ajuste espera o teto de 250 ms, o pior caso da mesa.
+    r = novo_robo(Parametros(), semente=3,
+                  config={"EMENDA_SEM_AJUSTE": emenda, "FINO_PARADO": 0.0})
+    r.mundo.avancar(1500)
+    r.tbr.zerar_rumo()
+    r.tbr.andar_no_rumo(20, 0, parar=False)
+    r.tbr.curva(30, -25)
+    return r.tbr.posicao()[0]
+
+
+def teste_chave_da_emenda_devolve_o_trecho_reto_antes_da_curva():
+    # Com a chave ligada a curva sai no ponto. Desligada, volta o método de
+    # antes de 05/11: o ajuste de rumo espera andando e a curva sai depois.
+    assert _x_apos_curva_emendada(False) - _x_apos_curva_emendada(True) > 3.0
+
+
+def teste_sem_creep_giro_pequeno_ainda_gira():
+    # Abaixo de GIRO_GROSSO_MIN só o creep girava: sem ele o robô ficava parado
+    # e devolvia True como se tivesse virado.
+    for fino in (True, False):
+        r = novo_robo(Parametros(), semente=3, config={"CREEP": False, "GIRO_FINO": fino})
+        r.mundo.avancar(1500)
+        r.tbr.zerar_rumo()
+        th0 = r.mundo.theta
+        assert r.tbr.virar_para(6)
+        r.mundo.avancar(300)
+        assert r.mundo.theta - th0 > 3.0, r.mundo.theta - th0
+
+
+def teste_usar_creep_vale_para_o_rumo_parado():
+    # Desligado, a reta não gasta tempo alinhando: nem _creep nem _fino rodam.
+    r = novo_robo(Parametros(), semente=3)
+    assert r.config.CREEP is True
+    r.tbr.usar_creep(False)
+    assert r.config.CREEP is False
+    chamou = []
+    r.tbr._fino = lambda *a, **k: chamou.append(a) or True
+    r.mundo.avancar(1500)
+    r.tbr.zerar_rumo()
+    r.tbr.virar_para(45)
+    r.tbr.andar(20)
+    assert not chamou
 
 
 def teste_virar_ate_travar_fecha_no_alvo():
@@ -139,3 +185,53 @@ def teste_virar_ate_travar_fecha_no_alvo():
             assert t.virar_ate_travar(alvo) is False
             m.avancar(300)
             assert abs(_norm(m.theta - alvo)) < 1.0, (semente, alvo, m.theta)
+
+
+# ----------------------------------------------------------------------
+def _robo_com_central(*apertos):
+    """Robô cujo botão central fica apertado nos intervalos (ini, fim), em ms."""
+    r = novo_robo(Parametros(), semente=4)
+    r.mundo.avancar(1500)
+    t0 = r.mundo.t
+    central = {r.tbr.Button.CENTER}
+    original = r.mundo.esperar_usuario
+
+    def esperar_usuario(ms):
+        original(ms)
+        t = r.mundo.t - t0
+        r.mundo.botoes = central if any(a <= t < b for a, b in apertos) else set()
+
+    r.mundo.esperar_usuario = esperar_usuario
+    r.mundo.botoes = central if any(a <= 0 < b for a, b in apertos) else set()
+    return r, lambda: r.mundo.t - t0
+
+
+def teste_esperar_continua_com_toque_rapido():
+    r, agora = _robo_com_central((300, 340))
+    r.tbr.esperar()
+    assert 340 <= agora() < 460
+
+
+def teste_esperar_ignora_o_dedo_que_ja_estava_no_botao():
+    r, agora = _robo_com_central((0, 200), (600, 640))
+    r.tbr.esperar()
+    assert agora() >= 640
+
+
+def teste_esperar_nao_aborta_com_repique_nem_com_toque_longo():
+    # Toque longo, repique ao soltar e a pausa logo depois: nada de abortar.
+    # O repique dura mais que o laço de 10 ms, senão cairia entre duas leituras.
+    r, agora = _robo_com_central((100, 900), (915, 935))
+    r.tbr.esperar()
+    assert agora() >= 935
+    r.tbr.esperar(100)
+
+
+def teste_central_volta_a_abortar_depois_do_gatilho():
+    r, _ = _robo_com_central((100, 150), (400, 450))
+    r.tbr.esperar()
+    try:
+        r.tbr.esperar(1000)
+    except r.tbr.SaidaAbortada:
+        return
+    assert False, "o central devia abortar depois do gatilho"

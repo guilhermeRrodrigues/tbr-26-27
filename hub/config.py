@@ -86,10 +86,10 @@ ELEVADOR_FORCA = 100
 
 # Garra: pinhão de 22 dentes (raio primitivo 11 mm) na cremalheira =>
 # 180 / (pi x 1,1) = 52,1 graus por cm. Curso de 3 cm (~156 graus): abre até
-# 6 cm entre os dedos (batente) e fecha até 3 cm (fundo do túnel).
+# 7 cm entre os dedos (batente) e fecha até 4 cm (fundo do túnel).
 GARRA_GRAUS_CM = 52.1
 GARRA_CURSO_CM = 3.0
-GARRA_ABERTA_CM = 6.0
+GARRA_ABERTA_CM = 7.0
 # Sinal do motor que FECHA: +1 = horário visto de cima (o pinhão puxa a barra
 # para trás). Se fechar() abrir, troque para -1.
 GARRA_FECHA = 1
@@ -118,6 +118,10 @@ GIRO_TOL_SAI = 0.8      # graus: e para abaixo disto
 CREEP_GANHO = 3.0       # graus/s de guinada por grau de erro
 CREEP_TAXA_MIN = 15     # graus/s: abaixo disto o robô não sai do lugar
 CREEP_TAXA_MAX = 60     # graus/s
+# CREEP = False: nenhum ajuste de rumo com o robô parado (nem creep nem ajuste
+# fino). O giro é só o grosso, e o erro que sobrar a reta seguinte corrige
+# andando. Para uma saída só, use usar_creep(False) em vez de mudar aqui.
+CREEP = True
 
 # --- Precisão do rumo (branch giroscopio-fino; ver docs/giroscopio.md) -------
 # Cada chave abaixo, com False, volta EXATAMENTE ao comportamento anterior.
@@ -175,6 +179,12 @@ TOL_DB_DIST_VEL = 20        # mm/s
 #  - seguir_linha termina com o rumo MÉDIO dos últimos ~200 ms;
 #  - a 2ª passada de alinhar_na_linha é mais lenta (ALINHAR_VEL_FINA).
 CORRECOES_RUMO = True
+# EMENDA_SEM_AJUSTE: vindo de um movimento com parar=False, curva e
+# andar_no_rumo seguem direto, sem ajustar o rumo. Com False, volta o método de
+# antes de 05/11: a curva fazia o ajuste ainda andando (até 250 ms reto a mais,
+# umas vezes sim e outras não) e o andar_no_rumo podia girar no lugar. Serve
+# para MEDIR se distâncias acertadas antes de 05/11 embutiam esse trecho extra.
+EMENDA_SEM_AJUSTE = True
 ALINHAR_VEL_FINA = 15       # mm/s na passada fina (simulador: p95 0,33 grau, +0,4 s)
 # Alinhar que gira mais que isto é esquadro falso (um sensor já começou sobre
 # a cor, ou uma roda patinou): devolve False e NÃO reescreve o rumo.
@@ -185,7 +195,7 @@ ALINHAR_MAX_GIRO = 15.0     # graus
 # levantado e posto de volta na base, então a cada largada há DUAS medidas de
 # para onde o robô aponta na mesa:
 #   - a MÃO de quem soltou ("está na direção da saída"), com erro de
-#     LARGADA_SIGMA_MAO graus (a olho ~1,5; com o gabarito ~0,3);
+#     LARGADA_SIGMA_MAO graus (a olho ~1,5; com gabarito impresso 0,15);
 #   - o GIROSCÓPIO ("está d graus torto"), cujo erro cresce com o tempo desde
 #     a última referência (deriva do bias + escala no manuseio).
 # As duas são FUNDIDAS pelo peso de cada uma (filtro de Kalman de um estado):
@@ -196,7 +206,11 @@ ALINHAR_MAX_GIRO = 15.0     # graus
 # múltiplo de LARGADA_PASSO mais perto (0, 90, 180, -90) ou o 3º item da
 # tupla em saidas.SAIDAS.
 LARGADA_COMPENSADA = True
-LARGADA_SIGMA_MAO = 1.5     # graus (1 sigma): 1,5 a olho (hoje); 0,3 quando usarem o GABARITO
+# Com 1,5 e gabarito, a saída 6 de 05/11 "corrigiu" de +0,8 a -1,1 grau um erro
+# de manuseio do giroscópio: até 13 mm no alvo, para os dois lados. A -0,1 grau,
+# acertou. Com 0,15, a pior correção daquele log cai para ~2 mm. Saída largada a
+# olho precisa de 1,5: este valor a deixaria sem compensação.
+LARGADA_SIGMA_MAO = 0.15    # graus (1 sigma): 0,15 com gabarito impresso (hoje); 1,5 a olho
 LARGADA_DERIVA = 2.0        # graus/min (1 sigma) do rumo da mesa: a rotina D
                             # mede a parte parada; com missões, ~2x o medido
 LARGADA_PASSO = 90.0
@@ -240,6 +254,7 @@ LIMIAR_BRANCO = 75
 
 # --- Segurança ----------------------------------------------------------------
 PERIODO_MS = 10         # período dos laços de controle
+BOTAO_REPIQUE_MS = 50   # esperar(): central solto por este tempo antes de seguir
 STALL_ABORTA_MS = 700   # travado por mais que isto => aborta o movimento
 # Andando sem sair do lugar (encostado em algo que cede): menos que isto em
 # STALL_ABORTA_MS => aborta a reta ou a curva.
@@ -255,6 +270,31 @@ CRONOMETRO = True
 # Diagnóstico do giro: cada virar_para/girar imprime quanto levou o giro
 # grosso e quanto levou o creep. Serve para acelerar os giros; depois, False.
 DIAG_GIRO = True
+# Diagnóstico de pose: cada linha T do cronômetro termina com x, y, rumo e erro
+# de rumo, para comparar acerto e erro na mesa. Depende de CRONOMETRO.
+DIAG_POSE = True
 
 # Duração da partida (s). O cronômetro começa na 1ª saída e não para.
 PARTIDA_S = 120
+
+# --- Dispositivo Maker (M8): 2º hub, programa hub/maker.py ---------------------
+# O robô avisa por Bluetooth (broadcast BLE, sem conexão) que entregou os
+# trabalhadores: avisar_maker() no tbr.py. Só depois do aviso o hub do Maker
+# olha o ultrassônico. Canal e sinal são só nossos: outro time transmitindo no
+# mesmo canal teria de mandar exatamente o mesmo texto para disparar a trava.
+MAKER_CANAL = 47            # 0 a 255, igual nos dois hubs
+MAKER_SINAL = "CB-M8"       # texto enviado pelo robô
+# Portas do 2º hub (não confundir com as do robô).
+MAKER_PORTA_SENSOR = Port.B     # ultrassônico
+MAKER_PORTA_TRAVA = Port.D      # motor da trava
+# Trabalhador visto: leitura até MAKER_LIMIAR_MM em MAKER_LEITURAS seguidas
+# (uma a cada 50 ms). Sem eco, o sensor devolve 2000.
+MAKER_LIMIAR_MM = 150
+MAKER_LEITURAS = 3
+# Espera depois do aviso antes de olhar, para o robô sair da frente do sensor.
+MAKER_ATRASO_MS = 0
+# Giro da trava: positivo = horário (direita, olhando para o disco do motor).
+# Invertido para -90 (anti-horário) a pedido da equipe em 04/11. Se a viga
+# bater na rampa em vez de subir, volte para 90.
+MAKER_TRAVA_GRAUS = -90
+MAKER_TRAVA_VEL = 300       # graus/s
