@@ -1,0 +1,26 @@
+OK: hub/ compila; programa empacotado com 37694 bytes (maker: 3915).
+Hub do robô: overclock (92F1DBFE-4D5B-AE33-F301-A3843F9DF32D)
+$ /Users/guilherme/dev/tbr-26-27/.venv/bin/python -m pybricksdev run ble --name 92F1DBFE-4D5B-AE33-F301-A3843F9DF32D --start --wait /Users/guilherme/dev/tbr-26-27/hub/main.py
+Searching for 92F1DBFE-4D5B-AE33-F301-A3843F9DF32D...
+COOPBOT TBR2026 menu
+DIAG firmware ('primehub', '4.1.0', 'ci-release-112-v4.1.0 on 2026-10-12')
+DIAG sentidos roda dir=Direction.CLOCKWISE esq=Direction.COUNTERCLOCKWISE
+DIAG calibracao GRAVADA: roda=56.00 bitola=98.92
+DIAG cor dir preto=10 branco=49 | esq preto=10 branco=41
+DIAG imu (2.0, 2500.0, (0.04478991, -1.5015125, 0.065882352), (360.0, 360.0, 360.0), (9806.65, -9806.65, 9806.65, -9806.65, 9806.65, -9806.65), 362.976)
+Largada: referencia da mesa fixada (direcao 0)
+>>> 1 M1 (partida em 0.0 s)
+T   1112 ms  andar_no_rumo(20, 0)  x=20.1 y=0.1 rumo=0.1 erro=-0.1
+DIAG fino pulso 1: erro 0.54 -> -0.06 em 142 ms, guinada no freio 5
+DIAG giro 89.9: grosso 658 ms (sobrou 1.5) + fino 197 ms (final -0.06, freio 30 ms)
+T    857 ms  virar_para(90, 450)  x=20.1 y=0.2 rumo=90.1 erro=-0.1
+T   1058 ms  andar_no_rumo(20, 90)  x=19.9 y=-19.7 rumo=89.7 erro=0.3
+T    702 ms  anexo1(-200)  x=19.9 y=-19.7 rumo=89.8 erro=0.2
+T    302 ms  esperar(300)  x=19.9 y=-19.7 rumo=89.7 erro=0.3
+T      1 ms  anexo1_ir_para(0, esperar=False)  x=19.9 y=-19.7 rumo=89.7 erro=0.3
+T    626 ms  andar_no_rumo(-8, 90)  x=19.9 y=-11.8 rumo=91.5 erro=-1.5
+DIAG fino pulso 1: erro -1.00 -> -0.09 em 297 ms, guinada no freio 12
+DIAG giro -60.9: grosso 536 ms (sobrou -1.3) + fino 339 ms (final -0.09, freio 27 ms)
+T   1976 ms  voltar_base(450, de_re=True)  x=-0.3 y=-0.4 rumo=32.4 erro=-1.8
+T    895 ms  andar_no_rumo(-15, 32.3579)  x=-12.8 y=7.6 rumo=32.4 erro=0.0
+<<< 1 levou 7.6 s | partida 7.6 s | restam 112.4 s

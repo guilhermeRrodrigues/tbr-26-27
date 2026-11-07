@@ -8,6 +8,8 @@ Roda em série (sem Pool) e com poucos robôs para caber no pytest.
 
 import sys
 
+import pytest
+
 from ferramentas.simgiro import cenarios
 from ferramentas.simgiro.carregar import novo_robo
 from ferramentas.simgiro.mundo import Parametros
@@ -185,6 +187,78 @@ def teste_virar_ate_travar_fecha_no_alvo():
             assert t.virar_ate_travar(alvo) is False
             m.avancar(300)
             assert abs(_norm(m.theta - alvo)) < 1.0, (semente, alvo, m.theta)
+
+
+def _robo_parado(semente=4, **kw):
+    r = novo_robo(Parametros(**kw), semente=semente)
+    r.mundo.avancar(1500)
+    r.tbr.zerar_rumo()
+    return r
+
+
+def teste_andar_com_forca_chega_no_ponto_e_no_rumo():
+    for semente in range(10):
+        for cm in (60, -60):
+            robo = _robo_parado(semente, roda_dif=0.01)
+            t, m = robo.tbr, robo.mundo
+            d0 = m.x
+            assert t.andar_com_forca(cm) is True
+            m.avancar(300)
+            assert abs((m.x - d0) - cm * 10) < 5, (semente, cm, m.x - d0)
+            assert abs(_norm(m.theta)) < 1.0, (semente, cm, m.theta)
+            assert abs(m.y) < 10, (semente, cm, m.y)
+
+
+def teste_andar_com_forca_ganha_do_rapido():
+    tempos = []
+    for andar in (lambda t: t.andar_no_rumo(100, 0, t.RAPIDO), lambda t: t.andar_com_forca(100)):
+        robo = _robo_parado()
+        t0 = robo.mundo.t
+        andar(robo.tbr)
+        tempos.append(robo.mundo.t - t0)
+    assert tempos[1] < tempos[0], tempos
+
+
+def teste_andar_com_forca_corrige_tirando_da_roda_de_dentro():
+    robo = _robo_parado()
+    t, m = robo.tbr, robo.mundo
+    esq, dir_ = [], []
+
+    def espiar(motor, duties):
+        original = motor.dc
+
+        def dc(duty):
+            duties.append(duty)
+            original(duty)
+
+        motor.dc = dc
+
+    espiar(t._roda_esq, esq)
+    espiar(t._roda_dir, dir_)
+    t.andar_com_forca(60, 5)                # 5 graus: corrige andando, para a direita
+    m.avancar(300)
+    assert esq[0] == 100 and 80 <= dir_[0] <= 90, (esq[0], dir_[0])
+    assert abs(_norm(m.theta - 5)) < 1.0, m.theta
+
+
+def teste_andar_com_forca_travado_desiste_e_solta():
+    robo = _robo_parado()
+    t, m = robo.tbr, robo.mundo
+    m.p.motor_vmax = 0.0                    # as rodas não saem do lugar
+    t0 = m.t
+    assert t.andar_com_forca(30, ms=500) is False
+    assert 500 <= m.t - t0 < 700, m.t - t0
+    assert {r[2] for r in m.roda.values()} == {"brake"}
+
+
+def teste_andar_com_forca_central_para_as_rodas():
+    robo = _robo_parado()
+    t, m = robo.tbr, robo.mundo
+    t0 = m.t
+    t.hub.buttons.pressed = lambda: {t.Button.CENTER} if m.t - t0 > 200 else set()
+    with pytest.raises(t.SaidaAbortada):
+        t.andar_com_forca(100)
+    assert {r[2] for r in m.roda.values()} == {"coast"}
 
 
 # ----------------------------------------------------------------------

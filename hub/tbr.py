@@ -227,16 +227,16 @@ def _giro_invertido(erro_inicial, normalizar):
     return False
 
 
-def _sem_progresso(vigia, t):
+def _sem_progresso(vigia, t, ms=config.STALL_ABORTA_MS):
     # vigia = [t_ref, d_ref]. True se o robô não andou PROGRESSO_MIN_MM em
-    # STALL_ABORTA_MS: encostado em algo que cede (blocos, peça), as rodas
-    # ainda giram um pouco e o db.stalled() não dispara.
+    # `ms`: encostado em algo que cede (blocos, peça), as rodas ainda giram um
+    # pouco e o db.stalled() não dispara.
     d = db.distance()
     if abs(d - vigia[1]) >= config.PROGRESSO_MIN_MM:
         vigia[0] = t
         vigia[1] = d
         return False
-    return t - vigia[0] > config.STALL_ABORTA_MS
+    return t - vigia[0] > ms
 
 
 def _esperar_db(teto_ms, vigiar_giro=None, progresso=False):
@@ -743,6 +743,54 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
         if config.DIAG_POSE and cron_fim.time() > 50:
             print("DIAG fim da reta: erro %.1f, ajuste %d ms" % (erro_fim, cron_fim.time()))
     return ok
+
+
+@_cronometrado("andar_com_forca")
+def andar_com_forca(cm, rumo=None, forca=100, ms=config.FORCA_TRAVOU_MS):
+    """Anda `cm` centímetros com TODA a força dos dois motores (negativo = de ré).
+
+    Manda `forca`% da tensão da bateria direto nas rodas: sem rampa na saída e
+    sem alvo de velocidade. O fim é o de sempre, com rampa e parada no rumo.
+    `rumo` = rumo absoluto; sem ele, segue o rumo desejado. A correção tira
+    força só da roda de dentro: quanto mais torto, menos que 100% nela.
+    Desiste se não andar PROGRESSO_MIN_MM em `ms` milissegundos e devolve False.
+    Roda que patina conta como distância: depois dele a posição não é confiável.
+    """
+    global _rumo_alvo
+    if rumo is not None:
+        _rumo_alvo = float(rumo)
+    if abs(_erro_rumo()) > config.RUMO_VIRAR_ANTES and not _emendado():
+        if not _ir_ate_rumo(normalizar=True):
+            db.stop()
+            return False
+    alvo_mm = abs(cm) * 10.0
+    sentido = 1 if cm >= 0 else -1
+    duty = _clamp(forca, 10, 100)
+    _aplicar_vel(RAPIDO)                         # rampa do fim, no andar_no_rumo
+    d0 = db.distance()
+    cron = StopWatch()
+    # Empurrando peso o robô anda devagar: o teto é folgado, e quem pega robô
+    # parado é a vigia de progresso.
+    teto = _teto(alvo_mm / config.VEL_LENTO * 1000)
+    vigia = [0, d0]
+    while True:
+        _checar()
+        restante = alvo_mm - abs(db.distance() - d0)
+        v = db.state()[1]
+        if restante <= v * v / (2.0 * config.ACEL_RETA):
+            break
+        t = cron.time()
+        if t > teto or _sem_progresso(vigia, t, ms):
+            db.brake()
+            _atualizar_pose()
+            print("AVISO: andar_com_forca parou em %.1f cm" % (abs(db.distance() - d0) / 10.0))
+            return False
+        # O 1o dc desliga o DriveBase e solta as duas rodas; o 2o já não o toca.
+        c = _clamp(config.FORCA_GANHO * _erro_rumo(), -duty, duty)
+        _roda_esq.dc(int(_clamp(sentido * duty + c, -duty, duty)))
+        _roda_dir.dc(int(_clamp(sentido * duty - c, -duty, duty)))
+        wait(config.PERIODO_MS)
+    return andar_no_rumo(sentido * max(restante, 0) / 10.0, _rumo_alvo, RAPIDO)
 
 
 def _aprender_freio_reta(v0, d_freio):
@@ -1855,9 +1903,9 @@ def avisar_maker():
     """Avisa o 2º hub (Dispositivo Maker) que os trabalhadores foram entregues.
 
     Liga o broadcast BLE no canal MAKER_CANAL e segue na hora: o rádio continua
-    anunciando sozinho até o programa acabar. Só depois deste aviso o hub do
-    Maker (hub/maker.py) começa a olhar o ultrassônico. Uma falha do rádio só
-    é impressa: não aborta a saída.
+    anunciando sozinho até o programa acabar. Com este aviso, o hub do Maker
+    (hub/maker.py) solta o Bloco. Uma falha do rádio só é impressa: não aborta
+    a saída.
     """
     global _radio
     try:

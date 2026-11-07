@@ -85,10 +85,12 @@ ELEVADOR_RAPIDO = 1000
 ELEVADOR_FORCA = 100
 
 # Garra: pinhão de 22 dentes (raio primitivo 11 mm) na cremalheira =>
-# 180 / (pi x 1,1) = 52,1 graus por cm. Curso de 3 cm (~156 graus): abre até
-# 7 cm entre os dedos (batente) e fecha até 4 cm (fundo do túnel).
+# 180 / (pi x 1,1) = 52,1 graus por cm. Curso de 4 cm (~208 graus): abre até
+# 7 cm entre os dedos (batente). Fecha até 3 cm só com o carro a ~3,2 cm ou mais
+# do fundo; com o carro embaixo, o hub para a barra em ~3,8 cm. Com a garra abaixo
+# disso, NÃO desça o carro: a barra desceria sobre o hub com a força do fuso.
 GARRA_GRAUS_CM = 52.1
-GARRA_CURSO_CM = 3.0
+GARRA_CURSO_CM = 4.0
 GARRA_ABERTA_CM = 7.0
 # Sinal do motor que FECHA: +1 = horário visto de cima (o pinhão puxa a barra
 # para trás). Se fechar() abrir, troque para -1.
@@ -234,6 +236,15 @@ LIMIAR_BORDA = 60
 RUMO_VIRAR_ANTES = 8.0  # graus (era 20)
 RUMO_VEL_FINAL = 40     # mm/s: velocidade mínima da rampa de frenagem
 
+# --- andar_com_forca: reta com a tensão toda da bateria nas duas rodas -------
+# Corrige o rumo tirando força só da roda de dentro: este tanto de duty (%) por
+# grau de erro. No simulador, de 1,5 a 12 dá o mesmo resultado; não medido na
+# mesa. Se o robô serpentear, baixe.
+FORCA_GANHO = 3.0
+# Sem andar PROGRESSO_MIN_MM por este tempo com tudo ligado, desiste. Motor
+# parado com 100% esquenta e descarrega: não suba sem necessidade.
+FORCA_TRAVOU_MS = 1500
+
 # --- sacudir: vai e vem curtinho para assentar/soltar/encaixar ---------------
 # Amplitudes padrão (a missão pode passar outras). Acelerações mais altas que
 # as da reta e do giro: com as normais, um vai e vem de 1 cm mal sai do lugar.
@@ -279,19 +290,14 @@ PARTIDA_S = 120
 
 # --- Dispositivo Maker (M8): 2º hub, programa hub/maker.py ---------------------
 # O robô avisa por Bluetooth (broadcast BLE, sem conexão) que entregou os
-# trabalhadores: avisar_maker() no tbr.py. Só depois do aviso o hub do Maker
-# olha o ultrassônico. Canal e sinal são só nossos: outro time transmitindo no
-# mesmo canal teria de mandar exatamente o mesmo texto para disparar a trava.
+# trabalhadores: avisar_maker() no tbr.py. Com o aviso, o hub do Maker solta o
+# Bloco. Canal e sinal são só nossos: outro time transmitindo no mesmo canal
+# teria de mandar exatamente o mesmo texto para disparar a trava.
 MAKER_CANAL = 47            # 0 a 255, igual nos dois hubs
 MAKER_SINAL = "CB-M8"       # texto enviado pelo robô
-# Portas do 2º hub (não confundir com as do robô).
-MAKER_PORTA_SENSOR = Port.B     # ultrassônico
-MAKER_PORTA_TRAVA = Port.D      # motor da trava
-# Trabalhador visto: leitura até MAKER_LIMIAR_MM em MAKER_LEITURAS seguidas
-# (uma a cada 50 ms). Sem eco, o sensor devolve 2000.
-MAKER_LIMIAR_MM = 150
-MAKER_LEITURAS = 3
-# Espera depois do aviso antes de olhar, para o robô sair da frente do sensor.
+# Porta do 2º hub (não confundir com as do robô).
+MAKER_PORTA_TRAVA = Port.B      # motor da trava
+# Espera depois do aviso antes de soltar, para o robô sair da frente da rampa.
 MAKER_ATRASO_MS = 0
 # Giro da trava: positivo = horário (direita, olhando para o disco do motor).
 # Invertido para -90 (anti-horário) a pedido da equipe em 04/11. Se a viga

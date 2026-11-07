@@ -24,6 +24,7 @@ def teste_todas_as_saidas_rodam():
     lambda: t.andar(10, t.NORMAL, 150),
     lambda: t.curva(30, 90, t.NORMAL, 150),
     lambda: t.curva(30, 90, -100),
+    lambda: t.andar_com_forca(30, 358, 5),          # 358,5 em vez de 358.5
 ])
 def teste_argumento_impossivel_e_recusado(chamada):
     # Compila e roda no hub, mas o robô não faz o que a equipe escreveu.
@@ -110,6 +111,15 @@ def teste_andar_no_rumo_muito_torto_gasta_o_giro():
     assert t.tempo() > reto
     x, y, _ = t.posicao()
     assert abs(x) < 1e-9 and y == pytest.approx(-20)
+
+
+def teste_andar_com_forca_segue_o_rumo():
+    t.andar_com_forca(20)
+    t.andar_com_forca(-5, 0, forca=80)
+    x, y, r = t.posicao()
+    assert (x, y, r) == (pytest.approx(15), pytest.approx(0, abs=1e-9), 0)
+    t.andar_com_forca(10, 90)
+    assert t.posicao()[1] == pytest.approx(-10)
 
 
 def teste_anexo_aumentar_soma_de_onde_esta():

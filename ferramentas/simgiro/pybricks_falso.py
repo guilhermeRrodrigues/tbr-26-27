@@ -317,6 +317,12 @@ def fabricar(mundo):
             return self.angle()
 
         def dc(self, duty):
+            if self.roda is not None:
+                if mundo.db is not None:
+                    mundo.db.desligar()
+                self._r()[2] = "dc"
+                self._r()[3] = duty
+                return
             self.modo = "dc"
             self._dc = duty
 

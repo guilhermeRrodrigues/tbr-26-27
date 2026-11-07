@@ -1,0 +1,102 @@
+OK: hub/ compila; programa empacotado com 37647 bytes (maker: 3910).
+Hub do robô: overclock (92F1DBFE-4D5B-AE33-F301-A3843F9DF32D)
+$ /Users/guilherme/dev/tbr-26-27/.venv/bin/python -m pybricksdev run ble --name 92F1DBFE-4D5B-AE33-F301-A3843F9DF32D --start --wait /Users/guilherme/dev/tbr-26-27/hub/main.py
+Searching for 92F1DBFE-4D5B-AE33-F301-A3843F9DF32D...
+COOPBOT TBR2026 menu
+DIAG firmware ('primehub', '4.1.0', 'ci-release-112-v4.1.0 on 2026-10-12')
+DIAG sentidos roda dir=Direction.CLOCKWISE esq=Direction.COUNTERCLOCKWISE
+DIAG calibracao GRAVADA: roda=56.00 bitola=98.92
+DIAG cor dir preto=10 branco=49 | esq preto=10 branco=41
+DIAG imu (2.0, 2500.0, (0.04478991, -1.5015125, 0.065882352), (360.0, 360.0, 360.0), (9806.65, -9806.65, 9806.65, -9806.65, 9806.65, -9806.65), 362.976)
+Largada: referencia da mesa fixada (direcao 0)
+>>> 5 M5 (partida em 0.0 s)
+T   2714 ms  andar_no_rumo(69.5, 0)  x=69.6 y=-0.0 rumo=-0.6 erro=0.6
+DIAG fino pulso 1: erro 0.98 -> 0.19 em 122 ms, guinada no freio 12
+DIAG giro 90.6: grosso 667 ms (sobrou 2.2) + fino 177 ms (final 0.19, freio 24 ms)
+T    846 ms  virar_para(90)  x=69.7 y=0.1 rumo=89.8 erro=0.2
+T    900 ms  andar_no_rumo(16.5, 90)  x=69.5 y=-16.2 rumo=89.7 erro=0.3
+T    926 ms  anexo1_ate_travar(-1, esperar=True, forca=50, teto_ms=1500)  x=69.5 y=-16.2 rumo=89.7 erro=0.3
+T    838 ms  andar_no_rumo(-14, 90)  x=69.7 y=-2.2 rumo=90.2 erro=-0.2
+T    452 ms  anexo1_aumentar(33.5)  x=69.7 y=-2.2 rumo=90.3 erro=-0.3
+DIAG fino pulso 1: erro 1.19 -> -0.14 em 621 ms, guinada no freio 17
+DIAG giro -25.3: grosso 309 ms (sobrou -2.2) + fino 715 ms (final -0.14, freio 24 ms)
+T   1025 ms  virar_para(65)  x=69.6 y=-2.1 rumo=65.1 erro=-0.1
+T    344 ms  anexo1_aumentar(-33.5)  x=69.6 y=-2.1 rumo=65.1 erro=-0.1
+DIAG fino pulso 1: erro 0.60 -> 0.05 em 254 ms, guinada no freio 11
+DIAG giro 114.9: grosso 826 ms (sobrou 1.8) + fino 317 ms (final 0.05, freio 23 ms)
+T   1145 ms  virar_para(180)  x=69.5 y=-2.0 rumo=179.9 erro=0.1
+DIAG giro 10.1: grosso 242 ms (sobrou 1.6) + fino 51 ms (final -0.30, freio 23 ms)
+T   2166 ms  andar_no_rumo(45, 190)  x=25.1 y=5.8 rumo=189.0 erro=1.0
+T    741 ms  anexo1_ir_para(0, esperar=True)  x=25.2 y=5.8 rumo=189.3 erro=0.7
+DIAG fino pulso 1: erro 0.62 -> 0.07 em 62 ms, guinada no freio 18
+DIAG giro 170.7: grosso 1182 ms (sobrou 1.0) + fino 106 ms (final 0.08, freio 21 ms)
+T   1289 ms  virar_para(0)  x=25.1 y=5.8 rumo=359.9 erro=0.1
+AVISO: robo sem progresso (encostado?), andar_no_rumo abortado
+DIAG fino pulso 1: erro 13.51 -> -0.11 em 1179 ms, guinada no freio 16
+DIAG fim da reta: erro 13.5, ajuste 1182 ms
+T   2147 ms  andar_no_rumo(47, 0)  x=25.2 y=5.8 rumo=360.1 erro=-0.1
+DIAG giro 89.9: grosso 753 ms (sobrou 0.8) + fino 31 ms (final 0.13, freio 21 ms)
+T    786 ms  virar_para(90)  x=25.1 y=6.0 rumo=449.9 erro=0.1
+T   1377 ms  andar_no_rumo(29, 90)  x=25.0 y=-23.1 rumo=449.1 erro=0.9
+T    769 ms  anexo1_ate_travar(-1, esperar=True, forca=50, teto_ms=1500)  x=25.0 y=-23.0 rumo=449.6 erro=0.4
+T   1128 ms  andar_no_rumo(-30, 90)  x=25.1 y=4.7 rumo=449.5 erro=0.5
+ABORTADA pelo botao central
+<<< 5 levou 20.0 s | partida 20.0 s | restam 100.0 s
+Largada: -0.0 graus da direcao 360 (compensado, giroscopio viu -1.2, peso 0.02)
+>>> 5 M5 (partida em 30.4 s)
+T   2762 ms  andar_no_rumo(69.5, 0)  x=69.5 y=-0.1 rumo=-0.6 erro=0.6
+DIAG fino pulso 1: erro 0.70 -> -0.34 em 275 ms, guinada no freio 19
+DIAG giro 90.6: grosso 704 ms (sobrou 1.2) + fino 324 ms (final -0.34, freio 22 ms)
+T   1029 ms  virar_para(90)  x=69.6 y=0.1 rumo=90.3 erro=-0.3
+T    912 ms  andar_no_rumo(16.5, 90)  x=69.2 y=-16.3 rumo=89.5 erro=0.5
+T    924 ms  anexo1_ate_travar(-1, esperar=True, forca=50, teto_ms=1500)  x=69.2 y=-16.3 rumo=89.6 erro=0.4
+T    859 ms  andar_no_rumo(-14, 90)  x=69.4 y=-2.2 rumo=90.8 erro=-0.8
+T    293 ms  anexo1_aumentar(33.5)  x=69.4 y=-2.2 rumo=90.8 erro=-0.8
+DIAG fino pulso 1: erro 2.63 -> -0.37 em 734 ms, guinada no freio 26
+DIAG giro -25.8: grosso 314 ms (sobrou -3.0) + fino 808 ms (final -0.36, freio 24 ms)
+T   1124 ms  virar_para(65)  x=69.2 y=-1.9 rumo=65.4 erro=-0.4
+T    636 ms  anexo1_aumentar(-33.5)  x=69.2 y=-2.0 rumo=65.4 erro=-0.4
+DIAG fino pulso 1: erro -0.84 -> 0.25 em 610 ms, guinada no freio 13
+DIAG giro 114.6: grosso 790 ms (sobrou 2.4) + fino 704 ms (final 0.25, freio 24 ms)
+T   1496 ms  virar_para(180)  x=67.9 y=-1.1 rumo=179.8 erro=0.2
+T   1875 ms  andar_no_rumo(45, 190)  x=23.6 y=5.8 rumo=191.1 erro=-1.1
+T    751 ms  anexo1_ir_para(0, esperar=True)  x=23.6 y=5.8 rumo=190.9 erro=-0.9
+DIAG giro 169.1: grosso 1129 ms (sobrou 1.3) + fino 72 ms (final 0.18, freio 24 ms)
+T   1202 ms  virar_para(0)  x=23.5 y=5.8 rumo=359.8 erro=0.2
+T   1996 ms  andar_no_rumo(47, 0)  x=70.6 y=5.9 rumo=359.1 erro=0.9
+DIAG fino pulso 1: erro 0.78 -> 0.03 em 327 ms, guinada no freio 7
+DIAG giro 90.9: grosso 697 ms (sobrou 1.3) + fino 371 ms (final 0.03, freio 21 ms)
+T   1069 ms  virar_para(90)  x=70.7 y=6.0 rumo=450.0 erro=0.0
+DIAG fino pulso 1: erro 2.02 -> 0.02 em 489 ms, guinada no freio 29
+DIAG fim da reta: erro 2.0, ajuste 502 ms
+T   1863 ms  andar_no_rumo(29, 90)  x=70.6 y=-23.3 rumo=449.9 erro=0.1
+T    932 ms  anexo1_ate_travar(-1, esperar=True, forca=50, teto_ms=1500)  x=70.6 y=-23.3 rumo=450.2 erro=-0.2
+T   1374 ms  andar_no_rumo(-30, 90)  x=70.8 y=6.7 rumo=449.1 erro=0.9
+T    382 ms  anexo1_aumentar(41)  x=70.8 y=6.7 rumo=449.0 erro=1.0
+DIAG fino pulso 1: erro 1.35 -> -0.20 em 580 ms, guinada no freio 20
+DIAG giro -24.0: grosso 296 ms (sobrou -2.0) + fino 663 ms (final -0.18, freio 21 ms)
+T    961 ms  virar_para(65)  x=70.7 y=6.9 rumo=425.2 erro=-0.2
+T    363 ms  anexo1_aumentar(-41)  x=70.7 y=6.9 rumo=425.3 erro=-0.3
+DIAG giro 114.7: grosso 817 ms (sobrou 1.3) + fino 51 ms (final 0.33, freio 21 ms)
+T    870 ms  virar_para(180)  x=70.6 y=6.9 rumo=539.7 erro=0.3
+T   1952 ms  andar_no_rumo(47, 180)  x=23.6 y=6.8 rumo=539.3 erro=0.7
+T    751 ms  anexo1_ir_para(0)  x=23.7 y=6.8 rumo=539.3 erro=0.7
+DIAG giro -179.3: grosso 1341 ms (sobrou -0.9) + fino 52 ms (final -0.07, freio 21 ms)
+T   1395 ms  virar_para(0)  x=23.2 y=6.9 rumo=360.1 erro=-0.1
+T   1971 ms  andar_no_rumo(47.5, 0)  x=70.7 y=6.6 rumo=361.2 erro=-1.2
+DIAG giro 88.8: grosso 676 ms (sobrou 1.9) + fino 41 ms (final 0.29, freio 21 ms)
+T    718 ms  virar_para(90)  x=70.7 y=6.7 rumo=449.7 erro=0.3
+T   1732 ms  andar_no_rumo(40, 90)  x=70.9 y=-33.5 rumo=448.3 erro=1.7
+T    957 ms  anexo1_ate_travar(-1, esperar=True, forca=50, teto_ms=1500)  x=70.9 y=-33.5 rumo=448.5 erro=1.5
+T   1775 ms  andar_no_rumo(-40, 90)  x=70.7 y=6.6 rumo=450.0 erro=-0.0
+T    315 ms  anexo1_aumentar(35)  x=70.7 y=6.6 rumo=450.0 erro=0.0
+DIAG giro -25.0: grosso 333 ms (sobrou -1.2) + fino 50 ms (final 0.33, freio 21 ms)
+T    385 ms  virar_para(65)  x=70.7 y=6.7 rumo=424.7 erro=0.3
+T    502 ms  anexo1_aumentar(-35)  x=70.7 y=6.7 rumo=424.7 erro=0.3
+DIAG giro 115.3: grosso 825 ms (sobrou 1.6) + fino 51 ms (final -0.13, freio 21 ms)
+T    878 ms  virar_para(180)  x=70.6 y=6.7 rumo=540.1 erro=-0.1
+T   2049 ms  andar_no_rumo(50, 180)  x=20.5 y=6.4 rumo=539.5 erro=0.5
+T      1 ms  anexo1_ir_para(0, esperar=False)  x=20.5 y=6.4 rumo=539.5 erro=0.5
+DIAG giro -179.5: grosso 1208 ms (sobrou -0.8) + fino 31 ms (final -0.49, freio 21 ms)
+T   1241 ms  virar_para(0)  x=20.3 y=6.6 rumo=360.5 erro=-0.5
+<<< 5 levou 40.4 s | partida 70.8 s | restam 49.2 s

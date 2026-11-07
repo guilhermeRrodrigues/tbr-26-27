@@ -23,7 +23,7 @@ Robô SPIKE Prime com Pybricks. Herdou o método do Baymax (`~/dev/baymax`): gir
 | `hub/main.py` | Menu: saídas + rotinas P C G R B A D T Z |
 | `hub/rotinas_cal.py` / `hub/calibracao.py` | Calibração e storage (MAGIC 0xCB, versão 1) |
 | `hub/missoes.py` / `hub/saidas.py` | Código do usuário |
-| `hub/maker.py` | Programa do 2º hub (Dispositivo Maker): espera `avisar_maker()` por BLE, depois ultrassônico → trava. `tbr rodar --maker` (os dois hubs) ou `--so-maker` |
+| `hub/maker.py` | Programa do 2º hub (Dispositivo Maker): espera `avisar_maker()` por BLE e solta o Bloco (motor da trava na porta B). `tbr rodar --maker` (os dois hubs) ou `--so-maker` |
 | `ferramentas/cli.py` | `tbr verificar / gravar / rodar / simular` |
 | `ferramentas/tbr_falso.py` / `simular.py` | Dublê e simulador |
 | `ferramentas/simgiro/` | Gêmeo digital: `tbr.py` real + física + Monte Carlo (`python -m ferramentas.simgiro`) |

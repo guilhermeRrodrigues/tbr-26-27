@@ -191,6 +191,41 @@ Horários no fuso de Brasília (GMT-3). "Testado na mesa" significa que houve lo
 
 ---
 
+## Sexta, 06/11 — garra de 7 a 3 cm
+
+**Curso de 30 para 40 mm.** Com a garra de 4 a 7 cm de 05/11, os blocos da missão 4 ficaram frouxos. A equipe precisa dos 7 cm e também de fechar até 3 cm, o que exige 40 mm de curso.
+
+- **Barra:** 15 dentes (eram 14) e furo do batente a 13 mm da traseira (eram 3). O comprimento segue em 109 mm.
+- **Carro:** túnel aberto atrás e rasgo do batente 10 mm mais longo. O pino passou a segurar também o fechamento.
+- **Hub:** a traseira da barra chega a y = −43, 8 mm além da frente do hub (y = −35). A garra só fecha até 3 cm com o carro a 3,2 cm ou mais do fundo, quando a barra passa por cima do hub. Com o carro embaixo, ela para em ~3,8 cm.
+- **Cuidado:** com a garra abaixo de ~3,8 cm, não descer o carro abaixo de 3,2 cm. A barra desceria sobre o hub com a força do fuso.
+- **Código:** `GARRA_CURSO_CM = 4.0`. A posição aberta não mudou, então os ângulos das missões medidos a partir dela continuam valendo. O `hub/missoes.py` não foi tocado.
+- **Impressão:** `elevador_p2_carro_garra.3mf` (40 min, 19,9 g). Carro e barra têm de ser trocados juntos, e o resto é reaproveitado.
+- **Medidas estimadas:** `Y_HUB` e `Z_TOPO_HUB` vêm das fotos de 31/10.
+- **Situação:** `montagem.py` do elevador (5 posições) e do Maker, `pytest` e `tbr verificar` passaram. Ainda **não testado na mesa**.
+
+**Resistência ao passar do limite antigo.** Impressa a peça, a barra passou a agarrar logo depois dos antigos 4 cm.
+
+- **Causa provável:** a boca traseira do túnel, em y = −34,5, só 1,5 mm depois do limite antigo. O G-code mostra uma parede de 8,6 mm atravessando a boca sem apoio, com as pontes de 65,6 mm terminando nela. O carro sai sem suporte, e a boca cede para dentro do túnel, na face de baixo da barra.
+- **Por que não usar suporte:** ele ficaria preso num túnel de 6,6 mm, e tirá-lo seria difícil.
+- **Mudança:** cauda da barra rebaixada 0,6 mm por baixo nos últimos 11 mm, com rampa de 1,2 mm na ponta (`CAUDA_COMPRIMENTO`, `CAUDA_ALIVIO`, `CAUDA_RAMPA`). Só por baixo, porque o topo fica na mesa de impressão.
+- **Impressão:** só a barra, no `elevador_p2b_barra.3mf` (11 min, 4,5 g). O carro impresso continua valendo.
+- **Situação:** `montagem.py` passou nas 5 posições. A causa não foi medida na peça: com o carro embaixo, a barra também encosta no hub quase no mesmo ponto. **Não testado na mesa.**
+
+**`andar_com_forca(cm, rumo=None, forca=100, ms=1500)`.** Reta com a tensão toda da bateria nas duas rodas.
+
+- **O que segurava a força:** não era o torque, que já é o máximo nas rodas. Eram o alvo de velocidade com rampa, as vigias de 700 ms (`STALL_ABORTA_MS`) e o `RETA_LIMITE_RODA`.
+- **Como funciona:** `dc()` direto nas rodas, com a correção de rumo tirando força só da roda de dentro. Perto do fim, entrega o resto ao `andar_no_rumo`, que faz a rampa e fecha o rumo.
+- **Firmware (pbio v4.1.3):** o primeiro `dc()` desliga o DriveBase e solta as duas rodas; o segundo já não mexe nele. `db.stop()` e `db.brake()` param motores em `dc`.
+- **Situação:** testado só no gêmeo digital, que não simula carga. **Não testado na mesa.**
+
+**Hub da M8 sem o ultrassônico.** O hub agora tem só o motor da trava, na porta B.
+
+- **Como funciona:** `hub/maker.py` espera o `avisar_maker()` e solta o Bloco, sem olhar nenhum sensor.
+- **Situação:** `tbr verificar` e `pytest` passaram. **Não testado na mesa.**
+
+---
+
 ## O que está sem commit (02/11)
 
 | Arquivo | Mudança |

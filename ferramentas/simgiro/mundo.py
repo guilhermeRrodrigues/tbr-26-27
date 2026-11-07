@@ -302,6 +302,9 @@ class Mundo:
         p = self.p
         for r in self.roda.values():
             ang, vel, modo, alvo = r
+            if modo == "dc":            # duty fixo: sem laço de velocidade
+                alvo = p.motor_vmax * alvo / 100.0
+                modo = "vel"
             if modo == "vel":
                 alvo = max(-p.motor_vmax, min(p.motor_vmax, alvo))
                 if abs(vel) < 1.0 and abs(alvo) < p.motor_estatica:

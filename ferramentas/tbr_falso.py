@@ -156,6 +156,21 @@ def andar_no_rumo(cm, rumo, vel=NORMAL, parar=True):
     return True
 
 
+def andar_com_forca(cm, rumo=None, forca=100, ms=_C["FORCA_TRAVOU_MS"]):
+    # Nada resiste aqui: tempo de um andar_no_rumo em RAPIDO, sem a rampa da saída
+    # que o hub não faz (na mesa a velocidade depende da bateria e da carga).
+    global _rumo
+    if not 10 <= forca <= 100:
+        raise ValueError("andar_com_forca: forca=%r fora de 10 a 100 "
+                         "(vírgula em vez de ponto, ou argumentos trocados?)" % (forca,))
+    delta = 0.0 if rumo is None else _normalizar(rumo - _rumo)
+    t_giro = _t_giro(delta) if abs(delta) > _C["RUMO_VIRAR_ANTES"] else 0.0
+    _rumo += delta
+    _avancar(cm)
+    _passo("andar_com_forca(%g)" % cm, t_giro + _t_reta(cm, RAPIDO))
+    return True
+
+
 def girar(graus, vel=NORMAL):
     global _rumo
     _rumo += graus

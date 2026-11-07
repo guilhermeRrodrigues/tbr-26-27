@@ -29,7 +29,7 @@ def m1_gangorra():
     # (0,0)→(20,0)→(20,-20). Era andar(-23); virar_para(0); andar(-25).
     andar_no_rumo(-8, 90)
     voltar_base(RAPIDO, de_re=True)
-    andar_no_rumo(-5, rumo())     # segue a diagonal da volta (rumo ≈ 31)
+    andar_no_rumo(-15, rumo())     # segue a diagonal da volta (rumo ≈ 31)
 
 
 def m2_blocos():
@@ -49,10 +49,10 @@ def m2_blocos():
     andar_no_rumo(32, -18, RAPIDO)                               # chega na peça
     anexo1_ate_travar(ANTI_HORARIO, forca=60, teto_ms=1500)   # prende sem esmagar
     andar_no_rumo(-31, -21)                                      # y≈1,2
-    virar_para(3, RAPIDO)
+    virar_para(0, RAPIDO)
     andar_no_rumo(73, 0, RAPIDO)                               # x≈80: ainda longe do L
     anexo1_ir_para(0)                               # solta com o braço livre
-    andar_no_rumo(24, 358.5, LENTO)                     # encosta e leva a peça ~10 cm
+    andar_no_rumo(24, 3.69, LENTO)                     # encosta e leva a peça ~10 cm
     # Gira o braço e posiciona a caixa. Força 50: com 60 a engrenagem pula dente
     # (rodou -694° sem travar na mesa); com 30 trava logo e não gira. Se pular
     # dente mesmo assim, o recolher logo abaixo refaz o 0.
@@ -115,7 +115,15 @@ def m2_blocos():
     curva(30, -15, RAPIDO, parar=False)             # rumo 180 em y=-10, x≈158,2
     andar_no_rumo(34.3, 180, RAPIDO, parar=False)
     curva(100, 7.99, RAPIDO, parar=False)           # aponta para (10, 5)
-    andar_no_rumo(94.97, 187.99, RAPIDO)
+    andar_no_rumo(55.5, 187.99, RAPIDO)
+    virar_para(90)
+    andar(22.69)
+    anexo1(-200)
+    anexo1_ir_para(0)
+    andar(-20)
+    virar_para(0)
+    andar(-25)
+
 
 
 def m3_rampa():
@@ -124,12 +132,18 @@ def m3_rampa():
     Rampa TOCANDO as 3 áreas iniciais dos blocos de alvenaria.
     """
     andar_no_rumo(21, 0)
-    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
-    andar_no_rumo(-40, 0)
-    andar_no_rumo(20, 0)
-    virar_para(90, LENTO)
-    andar_no_rumo(-2, 90)
+    anexo1_ate_travar(ANTI_HORARIO, forca=69, teto_ms=1500)
+    andar_no_rumo(-38, 0)
+    virar_para(65)
+    andar(69)
+    virar_para(60)
+    andar(28)
+    virar_para(90)
+    andar(27)
     anexo1_ir_para(0)
+    andar_ate_travar(20)
+    andar(-25)
+    voltar_base(de_re=True)
 
 
 def m4_epis():
@@ -160,7 +174,7 @@ def m4_epis():
 
 def m6_carrinho():
     apertar(esperar=False)                          # a garra fecha enquanto anda
-    andar_no_rumo(37.69, 0, RAPIDO)
+    andar_no_rumo(36.69, 0, RAPIDO)
     virar_para(321)
     # Chega rápido e só encosta devagar. O andar_ate_travar(35) não encostava,
     # então o alvo está a mais de 35 cm: o robô passa de RAPIDO para LENTO
@@ -168,7 +182,7 @@ def m6_carrinho():
     # "encostou em X cm" do log, dá para trocar o 25 por (25 + X) - 5 e o 20
     # por uns 10.
     andar_no_rumo(18.42, 321, RAPIDO)
-    andar_ate_travar(22)
+    andar_ate_travar(16)
     # Os dois anexos ao mesmo tempo
     anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
     anexo2_ate_travar(HORARIO, forca=100, teto_ms=1500)
@@ -186,7 +200,7 @@ def m5_peca():
 
     Carrinho DENTRO da área verde: totalmente 40, parcialmente 17.
     """
-    andar_no_rumo(69.5, 0)
+    andar_no_rumo(69, 0)
     virar_para(90)
     andar_no_rumo(16.5, 90)
     anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500, esperar=True)
@@ -196,32 +210,32 @@ def m5_peca():
     anexo1_aumentar(-35.5)
     virar_para(180)
     andar_no_rumo(45, 190)
-    anexo1_ir_para(0, esperar=False)
+    anexo1_ir_para(0, esperar=True)
     virar_para(0)
-    andar_no_rumo(47, 0)
+    andar_no_rumo(44.5, 0)
     virar_para(90)
-    andar_no_rumo(29, 90)
-    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500, esperar=False)
+    andar_no_rumo(25.69, 90)
+    anexo1_ate_travar(ANTI_HORARIO, forca=65, teto_ms=1500, esperar=True)
     andar_no_rumo(-30, 90)
-    anexo1_aumentar(41)
+    anexo1_aumentar(50)
     virar_para(65)
-    anexo1_aumentar(-41)
+    anexo1_aumentar(-50)
     virar_para(180)
-    andar_no_rumo(47, 180)
+    andar_no_rumo(46.69, 180)
     anexo1_ir_para(0)
     virar_para(0)
-    andar_no_rumo(49, 0)
+    andar_no_rumo(46.69, 0)
     virar_para(90)
-    andar_no_rumo(40, 90)
-    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500, esperar=False)
-    andar_no_rumo(-40, 90)
+    andar_no_rumo(32.80, 90)
+    anexo1_ate_travar(ANTI_HORARIO, forca=65, teto_ms=1500, esperar=True)
+    andar_no_rumo(-30, 90)
     anexo1_aumentar(35)
     virar_para(65)
     anexo1_aumentar(-35)
     virar_para(180)
     andar_no_rumo(50, 180)
     anexo1_ir_para(0, esperar=False)
-    virar_para(0)
+    voltar_base(RAPIDO, de_re=True)
     
 
 
@@ -251,18 +265,19 @@ def m7_bandeira():
 
 
 def m8_maker():
-    """M8 Missão Maker — até 68 pts (DP-Middle p.17-19).
-
-    7 pts por trabalhador TOCANDO a Área Industrial. O Dispositivo Maker
-    detecta o trabalhador e libera o Bloco; depois de TOCAR o tapete, o robô
-    pode levá-lo: Área Industrial 20 ou Área Escolar 40.
-    """
-    pass
+    andar(34)
+    virar_para(-90)
+    andar(-39)
+    virar_para(-180)
+    andar(-100, RAPIDO)
+    voltar_base(RAPIDO)
 
 
 def m9_patio():
-    """M9 Entrada Inclusiva — 52 pts (DP-Middle p.20-21).
-
-    Robô termina SOBRE o pátio elevado (100% do peso no pátio).
-    """
-    pass
+    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
+    anexo1_aumentar(35, esperar=False)  # o braço sobe enquanto sai
+    andar_no_rumo(60, 0, RAPIDO)
+    virar_para(-90, RAPIDO)
+    # Reta + curva + reta: mesmo ponto final de andar(40); virar_para(0);
+    # andar(36), sem parar no canto (passa até 0,7 cm por dentro dele).
+    seguir_linha(100)
