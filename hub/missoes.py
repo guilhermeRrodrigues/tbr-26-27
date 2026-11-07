@@ -47,16 +47,16 @@ def m2_blocos():
     andar_no_rumo(8.5, 0)
     virar_para(-17)
     andar_no_rumo(32, -18, RAPIDO)                               # chega na peça
-    anexo1_ate_travar(ANTI_HORARIO, forca=60, teto_ms=1500)   # prende sem esmagar
+    anexo1_ate_travar(ANTI_HORARIO, forca=67, teto_ms=1500)   # prende sem esmagar
     andar_no_rumo(-31, -21)                                      # y≈1,2
     virar_para(0, RAPIDO)
     andar_no_rumo(73, 0, RAPIDO)                               # x≈80: ainda longe do L
     anexo1_ir_para(0)                               # solta com o braço livre
-    andar_no_rumo(24, 3.69, LENTO)                     # encosta e leva a peça ~10 cm
+    andar_no_rumo(24, 0, LENTO)                     # encosta e leva a peça ~10 cm
     # Gira o braço e posiciona a caixa. Força 50: com 60 a engrenagem pula dente
     # (rodou -694° sem travar na mesa); com 30 trava logo e não gira. Se pular
     # dente mesmo assim, o recolher logo abaixo refaz o 0.
-    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
+    anexo1_ate_travar(ANTI_HORARIO, forca=67, teto_ms=1500)
     anexo1_aumentar(20.67)
     andar_no_rumo(-4, 0)                            # já no rumo 0: alinha sozinho
     virar_ate_travar(-25)                           # para ao encostar
@@ -91,7 +91,7 @@ def m2_blocos():
     #FIM MISSÃO NAO SEI O NUMERO - RUMO AO PROXIMO ALVO!
     ir_para(181.3, -14.6)                           # mesma parada de antes na alavanca, pelo norte
     virar_para(0)
-    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500, esperar=False)
+    anexo1_ate_travar(ANTI_HORARIO, forca=67, teto_ms=1500, esperar=False)
     virar_ate_travar(90)
     # Braço para o 0 por posição (força total), não pelo recolher: encostado na
     # alavanca, o recolher achava que era o batente e "zerava" com o braço para
@@ -117,10 +117,10 @@ def m2_blocos():
     curva(100, 7.99, RAPIDO, parar=False)           # aponta para (10, 5)
     andar_no_rumo(55.5, 187.99, RAPIDO)
     virar_para(90)
-    andar(22.69)
+    andar(17.69)
     anexo1(-200)
     anexo1_ir_para(0)
-    andar(-20)
+    andar(-17)
     virar_para(0)
     andar(-25)
 
@@ -134,7 +134,7 @@ def m3_rampa():
     andar_no_rumo(21, 0)
     anexo1_ate_travar(ANTI_HORARIO, forca=69, teto_ms=1500)
     andar_no_rumo(-38, 0)
-    virar_para(65)
+    virar_para(63)
     andar(69)
     virar_para(60)
     andar(28)
@@ -142,6 +142,7 @@ def m3_rampa():
     andar(27)
     anexo1_ir_para(0)
     andar_ate_travar(20)
+    avisar_maker()
     andar(-25)
     voltar_base(de_re=True)
 
@@ -175,13 +176,13 @@ def m4_epis():
 def m6_carrinho():
     apertar(esperar=False)                          # a garra fecha enquanto anda
     andar_no_rumo(36.69, 0, RAPIDO)
-    virar_para(321)
+    virar_para(316)
     # Chega rápido e só encosta devagar. O andar_ate_travar(35) não encostava,
     # então o alvo está a mais de 35 cm: o robô passa de RAPIDO para LENTO
     # nos ~11 cm depois dos 25 e chega a ~36 cm já devagar. Com a linha
     # "encostou em X cm" do log, dá para trocar o 25 por (25 + X) - 5 e o 20
     # por uns 10.
-    andar_no_rumo(18.42, 321, RAPIDO)
+    andar_no_rumo(17.69, 318, RAPIDO)
     andar_ate_travar(16)
     # Os dois anexos ao mesmo tempo
     anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
@@ -274,10 +275,4 @@ def m8_maker():
 
 
 def m9_patio():
-    anexo1_ate_travar(ANTI_HORARIO, forca=50, teto_ms=1500)
-    anexo1_aumentar(35, esperar=False)  # o braço sobe enquanto sai
-    andar_no_rumo(60, 0, RAPIDO)
-    virar_para(-90, RAPIDO)
-    # Reta + curva + reta: mesmo ponto final de andar(40); virar_para(0);
-    # andar(36), sem parar no canto (passa até 0,7 cm por dentro dele).
-    seguir_linha(100)
+    avisar_maker()
