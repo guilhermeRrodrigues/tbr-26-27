@@ -174,22 +174,49 @@ def m4_epis():
 
 
 def m6_carrinho():
+    """Versão do CHÃO de treino (descida de 1°). Na mesa oficial: m6_carrinho_mesa0."""
     apertar(esperar=False)                          # a garra fecha enquanto anda
     andar_no_rumo(36.69, 0, RAPIDO)
-    virar_para(316)
+    virar_para(321)
     # Chega rápido e só encosta devagar. O andar_ate_travar(35) não encostava,
     # então o alvo está a mais de 35 cm: o robô passa de RAPIDO para LENTO
     # nos ~11 cm depois dos 25 e chega a ~36 cm já devagar. Com a linha
     # "encostou em X cm" do log, dá para trocar o 25 por (25 + X) - 5 e o 20
     # por uns 10.
-    andar_no_rumo(17.69, 318, RAPIDO)
-    andar_ate_travar(16)
+    andar_no_rumo(17.69, 321, RAPIDO)
+    andar_ate_travar(18.33)
     # Os dois anexos ao mesmo tempo
     anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
     anexo2_ate_travar(HORARIO, forca=100, teto_ms=1500)
     esperar_anexos()
     # Se a peça escorregar na ré, volte estas duas para NORMAL.
     andar_no_rumo(-35.5, 321, RAPIDO)
+    virar_para(0)
+    andar_no_rumo(-40, 0)
+    anexo1_ate_travar(HORARIO, forca=100, teto_ms=1500, esperar=True)
+
+
+def m6_carrinho_mesa0():
+    """Versão da MESA OFICIAL (plana, grau 0). Igual à do chão, só muda o rumo.
+
+    Na mesa (07/11), com 321 o robô passou 4 cm ou mais à ESQUERDA do alvo. O
+    giro parava em ~-37,5 e a reta RAPIDO passava do ponto até ~-42: o trajeto
+    real saiu ~3,5° à esquerda do pedido, e isso se repetiu nas 3 tentativas.
+    328 = 7° mais à direita, ~4 cm no ponto de encostar (~34 cm depois do giro).
+
+    Para ajustar na hora, mude os TRÊS 328 juntos: número maior = mais à
+    direita, e cada 1° ≈ 0,6 cm ali (1 cm ≈ 1,7°).
+    """
+    apertar(esperar=False)                          # a garra fecha enquanto anda
+    andar_no_rumo(36.69, 0, RAPIDO)
+    virar_para(328)
+    andar_no_rumo(17.69, 328, RAPIDO)
+    andar_ate_travar(16)
+    # Os dois anexos ao mesmo tempo
+    anexo1_ate_travar(ANTI_HORARIO, forca=100, teto_ms=1500, esperar=False)
+    anexo2_ate_travar(HORARIO, forca=100, teto_ms=1500)
+    esperar_anexos()
+    andar_no_rumo(-35.5, 328, RAPIDO)               # volta pela mesma linha
     virar_para(0)
     andar_no_rumo(-40, 0)
     anexo1_ate_travar(HORARIO, forca=100, teto_ms=1500, esperar=True)

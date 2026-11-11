@@ -19,8 +19,16 @@ from missoes import *
 
 
 def saida_6():
+    # MESA OFICIAL (plana). A versão do chão de treino é o item 10.
     giro_fino(False)    # esta saída não usa o ajuste fino...
     usar_creep(False)   # ...nem o creep: o rumo se corrige andando
+    m6_carrinho_mesa0()
+
+
+def saida_6_chao():
+    # CHÃO de treino (descida de 1°): a mesma saída 6 com o rumo 321.
+    giro_fino(False)
+    usar_creep(False)
     m6_carrinho()
 
 
@@ -35,8 +43,11 @@ SAIDAS = (
     ("M3", m3_rampa),
     ("M4", m4_epis),
     ("M5", m5_peca),
-    ("M6", saida_6),
+    ("M6 mesa0", saida_6),
     ("M7", saida_7),
     ("M8", m8_maker),
     ("M9", m9_patio),
+    # Item 10: fica no fim para não renumerar 7 a 9. Depois da M9 completa,
+    # o menu avança sozinho para ele.
+    ("M6 chao", saida_6_chao),
 )

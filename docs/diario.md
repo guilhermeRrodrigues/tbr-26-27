@@ -226,6 +226,25 @@ Horários no fuso de Brasília (GMT-3). "Testado na mesa" significa que houve lo
 
 ---
 
+## Sábado, 07/11 — regional: saída 6 na mesa plana
+
+**A saída 6 do chão passa à esquerda na mesa oficial.** O treino é num chão com descida de 1°, e a mesa oficial é plana. Com `virar_para(321)` e `andar_no_rumo(17.69, 321)`, que funcionam no chão, o robô passou 4 cm ou mais à esquerda do alvo nas 3 tentativas.
+
+- **O que o log mostra:**
+  - o giro para em −37,4 / −37,4 / −37,7 (alvo −39), porque a saída roda sem creep e sem ajuste fino;
+  - a reta RAPIDO passa do ponto e termina em −42,0 / −42,7 / −40,5, com o trajeto real a ~42,5°;
+  - o fim da reta se repete em (49,6–50,0; 11,9–12,4), então o erro é sistemático.
+- **Mudança:** nova `m6_carrinho_mesa0()`, igual à do chão, com **328** no giro, na reta de ida e na ré. São 7° mais à direita, ~4 cm no ponto de encostar, ~34 cm depois do giro.
+- **Para ajustar:**
+  - número maior = mais à direita;
+  - cada 1° ≈ 0,6 cm ali;
+  - mudar os três 328 juntos.
+- **Menu:** o item 6 agora é a mesa (`M6 mesa0`), e a versão do chão (`M6 chao`, 321) foi para o item 10.
+- **Descartada:** a 316/318 que estava sem commit (guardada em `286a016`). Ela apontava para o lado errado e nunca rodou na mesa.
+- **Situação:** `tbr verificar`, `pytest` e `tbr simular 6 10` passaram. **Não testado na mesa.**
+
+---
+
 ## O que está sem commit (02/11)
 
 | Arquivo | Mudança |
